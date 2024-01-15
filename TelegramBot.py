@@ -1,4 +1,3 @@
-import logging
 import os
 import time
 import datetime
@@ -13,8 +12,8 @@ app = FastAPI()
 # Variable to control the task execution
 is_task_running = False
 # Set up logging
-logging.basicConfig(level=logging.ERROR)
-logger = logging.getLogger(__name__)
+# logging.basicConfig(level=logging.ERROR)
+# logger = logging.getLogger(__name__)
 
 bot_token = '6808468907:AAFu9hO68_8GqPd2DRMQIQZRf0eBFEnPS7c'
 
@@ -113,7 +112,7 @@ def send_tweet(auth_token_value, ct0_value, plain_text,user,task_id,filename):
     else :
          account.tweet(plain_text)
     # print(f"New TaskId: {task_id}, Finished for user: {user}")
-    logger.error(f"New TaskId: {task_id}, Finished for user: {user}")
+    print(f"New TaskId: {task_id}, Finished for user: {user}")
 
 
 def main():
