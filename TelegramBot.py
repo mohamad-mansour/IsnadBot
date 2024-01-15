@@ -141,7 +141,7 @@ def main():
     updater.start_polling()
 
     # Run the bot until you send a signal to stop it
-    updater.idle()
+    # updater.idle()
 
 if __name__ == '__main__':
     import uvicorn
