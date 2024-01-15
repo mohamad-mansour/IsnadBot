@@ -16,7 +16,7 @@ is_task_running = False
 # logging.basicConfig(level=logging.ERROR)
 # logger = logging.getLogger(__name__)
 
-bot_token = '6808468907:AAFWWIMm0yG2KKNvN8DD3sZIJ0VaDK7RkkI'
+bot_token = '6875496830:AAE0TKZjtA2xYzsochdmALHGW1_j6RCqrlk'
 
 @app.get("/")
 def read_root():
