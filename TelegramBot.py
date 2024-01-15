@@ -28,8 +28,14 @@ async def startup_event():
     global is_task_running
     is_task_running = True
     # while is_task_running:
-    main()
+    
     # time.sleep(10)  # Sleep for 10 seconds between iterations
+    try:
+        main()
+        pass
+    except telegram.error.Conflict as e:
+        logger.error(f"Telegram Conflict Error: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 
