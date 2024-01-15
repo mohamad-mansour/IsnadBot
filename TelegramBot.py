@@ -1,9 +1,9 @@
-import logging
 import os
 import time
 import datetime
-from fastapi import FastAPI, BackgroundTasks
+from fastapi import FastAPI, BackgroundTasks, HTTPException
 from telegram import Update
+import telegram
 from telegram.ext import (CallbackContext, CommandHandler, Filters,
                           MessageHandler, Updater)
 from twitter.account import Account
@@ -12,9 +12,6 @@ app = FastAPI()
 
 # Variable to control the task execution
 is_task_running = False
-# Set up logging
-# logging.basicConfig(level=logging.ERROR)
-# logger = logging.getLogger(__name__)
 
 bot_token = '6947455173:AAGdl_fYtfl0vXaBOuxNHj6J2kC-Cq14Zx4'
 
@@ -34,7 +31,7 @@ async def startup_event():
         main()
         pass
     except telegram.error.Conflict as e:
-        logger.error(f"Telegram Conflict Error: {e}")
+        print(f"Telegram Conflict Error: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
@@ -66,12 +63,12 @@ def handle_new_message(update: Update, context: CallbackContext) -> None:
     if update.channel_post.text:
         # Text message
         text_message = update.channel_post.text_html
-        # print(f"Text message: {text_message}")
+        print(f"Text message: {text_message}")
 
     elif update.channel_post.photo:
         # Image message
         text_message = update.channel_post.caption
-        # print(f"Image caption: {text_message}")
+        print(f"Image caption: {text_message}")
         file_id = update.channel_post.photo[-1].file_id # get the file id of the last photo in the message
         file = context.bot.get_file(file_id) # get the file object
         file.download(f"image_{file_id}.jpg") # download the file to a local file with the same name as the file id
@@ -105,7 +102,7 @@ def handle_new_message(update: Update, context: CallbackContext) -> None:
                             filename = os.path.join(os.getcwd(), f"image_{file_id}.jpg")
 
                         # Assuming you have a function to send tweets
-                        send_tweet(auth_token_value, ct0_value, plain_text,user,task_id,filename)
+                        # send_tweet(auth_token_value, ct0_value, plain_text,user,task_id,filename)
 
                         # Sleep for 10 seconds between each set of cookies
                         time.sleep(10)
