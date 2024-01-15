@@ -13,10 +13,10 @@ app = FastAPI()
 # Variable to control the task execution
 is_task_running = False
 # Set up logging
-logging.basicConfig(level=logging.ERROR)
-logger = logging.getLogger(__name__)
+# logging.basicConfig(level=logging.ERROR)
+# logger = logging.getLogger(__name__)
 
-bot_token = '6808468907:AAFQoh6cYnP3gM4pi8DG5IYg7eDAjQ_dH7c'
+bot_token = '6808468907:AAFWWIMm0yG2KKNvN8DD3sZIJ0VaDK7RkkI'
 
 @app.get("/")
 def read_root():
@@ -115,7 +115,7 @@ def send_tweet(auth_token_value, ct0_value, plain_text,user,task_id,filename):
     else :
          account.tweet(plain_text)
     # print(f"New TaskId: {task_id}, Finished for user: {user}")
-    logger.error(f"New TaskId: {task_id}, Finished for user: {user}")
+    print(f"New TaskId: {task_id}, Finished for user: {user}")
 
 
 def main():
