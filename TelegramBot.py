@@ -60,6 +60,7 @@ processed_task_ids = set()
 def handle_new_message(update: Update, context: CallbackContext) -> None:
     # This function will be called when a new message is received in the specified channel
     file_id = ''
+    file_type = ''
     if update.channel_post.text:
         # Text message
         text_message = update.channel_post.text_html
@@ -72,6 +73,15 @@ def handle_new_message(update: Update, context: CallbackContext) -> None:
         file_id = update.channel_post.photo[-1].file_id # get the file id of the last photo in the message
         file = context.bot.get_file(file_id) # get the file object
         file.download(f"image_{file_id}.jpg") # download the file to a local file with the same name as the file id
+        file_type = 'image'
+    
+    elif update.channel_post.video:
+        # video message
+        text_message = update.channel_post.caption
+        file_id = update.channel_post.video.file_id # get the file id of the last video in the message
+        file = context.bot.get_file(file_id) # get the file object
+        file.download(f"video_{file_id}.MP4") # download the file to a local file with the same name as the file id
+        file_type = 'video'
         
     # Extract TaskId from the message
     task_id_start = text_message.find('TaskId:')
@@ -99,7 +109,10 @@ def handle_new_message(update: Update, context: CallbackContext) -> None:
                         filename = ''
                         # Known filename in the current directory
                         if file_id:
-                            filename = os.path.join(os.getcwd(), f"image_{file_id}.jpg")
+                            if file_type =='image':
+                                filename = os.path.join(os.getcwd(), f"image_{file_id}.jpg")
+                            else:
+                                filename = os.path.join(os.getcwd(), f"video_{file_id}.MP4")
 
                         # Assuming you have a function to send tweets
                         send_tweet(auth_token_value, ct0_value, plain_text,user,task_id,filename)
