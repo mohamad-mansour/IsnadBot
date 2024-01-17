@@ -35,7 +35,7 @@ if platform.system() != 'Windows':
 class Account:
 
     def __init__(self, email: str = None, username: str = None, password: str = None, session: Client = None, **kwargs):
-        print('HERE WE ARE INSIDE THE NEW ')
+        
         self.save = kwargs.get('save', True)
         self.debug = kwargs.get('debug', 0)
         self.gql_api = 'https://twitter.com/i/api/graphql'
