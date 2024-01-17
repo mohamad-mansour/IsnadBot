@@ -1,12 +1,13 @@
 import os
 import time
 import datetime
+import random
 from fastapi import FastAPI, BackgroundTasks, HTTPException
 from telegram import Update
 import telegram
 from telegram.ext import (CallbackContext, CommandHandler, Filters,
                           MessageHandler, Updater)
-from twitter.account import Account
+from account import Account
 
 app = FastAPI()
 
@@ -17,7 +18,7 @@ bot_token = '6947455173:AAGdl_fYtfl0vXaBOuxNHj6J2kC-Cq14Zx4'
 
 @app.get("/")
 def read_root():
-    return {"Welcome ": "IsnadBot..."}
+    return {"Welcome ": "IsnadTWitterBot..."}
 
 @app.on_event("startup")
 async def startup_event():
@@ -117,19 +118,22 @@ def handle_new_message(update: Update, context: CallbackContext) -> None:
                         # Assuming you have a function to send tweets
                         send_tweet(auth_token_value, ct0_value, plain_text,user,task_id,filename)
 
-                        # Sleep for 10 seconds between each set of cookies
-                        time.sleep(10)
+                        # Introduce random delays between API requests
+                        random_delay = random.uniform(25, 50)
+                        time.sleep(random_delay)
                 if file_id:
                     os.remove(filename)
 
 
 # Function to send tweets using auth_token_value, ct0_value, and plain_text
 def send_tweet(auth_token_value, ct0_value, plain_text,user,task_id,filename):
+    hashtags = ["#BringThemHomeNow", "#בחירות_עכשיו", "#הדחה_עכשיו"]
+    tweet_content = f"{plain_text} {random.choice(hashtags)} "
     account = Account(cookies={"ct0": ct0_value, "auth_token": auth_token_value})
     if filename:
-        account.tweet(plain_text,media=[{'media': filename, 'alt': plain_text}])
+        account.tweet(tweet_content,media=[{'media': filename, 'alt': plain_text}])
     else :
-         account.tweet(plain_text)
+         account.tweet(tweet_content)
     # print(f"New TaskId: {task_id}, Finished for user: {user}")
     print(f"New TaskId: {task_id}, Finished for user: {user}")
 
