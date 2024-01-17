@@ -136,7 +136,7 @@ def get_headers(session, **kwargs) -> dict:
         'Sec-Fetch-Dest':'empty',
         'Accept-Language':'en-US,en;q=0.9',
     }
-    print('Headers are:', headers)
+    
     return dict(sorted({k.lower(): v for k, v in headers.items()}.items()))
 
 
