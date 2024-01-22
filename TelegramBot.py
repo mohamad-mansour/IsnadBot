@@ -19,23 +19,13 @@ def read_root():
 async def startup_event():
     print('Main Server started---- :', datetime.datetime.now())
     global is_task_running
-    is_task_running = True
-    # while is_task_running:
-    
-    # time.sleep(10)  # Sleep for 10 seconds between iterations
-    try:
-        main()
-        pass
-    except telegram.error.Conflict as e:
-        print(f"Telegram Conflict Error: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error")
+    is_task_running = True    
+    main()
 
 
 
 def background_task(background_tasks: BackgroundTasks):
     while is_task_running:
-        # Your background task logic goes here
-        # You can use existing functions like get_user_last_tweet or tweet_one_hour
         background_tasks.add_task(main)
         time.sleep(10)  # Sleep for 10 seconds between iterations
 
@@ -45,10 +35,6 @@ def background_task(background_tasks: BackgroundTasks):
 async def shutdown_event():
     global is_task_running
     is_task_running = False
-
-def start(update: Update, context: CallbackContext) -> None:
-    update.message.reply_text('Hello! This is your bot again.')
-
 
 # Set to keep track of processed TaskIds
 processed_task_ids = set()
