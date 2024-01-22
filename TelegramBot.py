@@ -3,22 +3,17 @@ import time
 import datetime
 import random
 from fastapi import FastAPI, BackgroundTasks, HTTPException
-from telegram import Update
-import telegram
-from telegram.ext import (CallbackContext, CommandHandler, Filters,
-                          MessageHandler, Updater)
-from account import Account
 
 app = FastAPI()
 
 # Variable to control the task execution
 is_task_running = False
 
-bot_token = '6947455173:AAGdl_fYtfl0vXaBOuxNHj6J2kC-Cq14Zx4'
+
 
 @app.get("/")
 def read_root():
-    return {"Welcome ": "IsnadTWitterBot..."}
+    return {"Welcome ": "IsnadTWitterBot Node1..."}
 
 @app.on_event("startup")
 async def startup_event():
@@ -58,104 +53,9 @@ def start(update: Update, context: CallbackContext) -> None:
 # Set to keep track of processed TaskIds
 processed_task_ids = set()
 
-def handle_new_message(update: Update, context: CallbackContext) -> None:
-    # This function will be called when a new message is received in the specified channel
-    file_id = ''
-    file_type = ''
-    if update.channel_post.text:
-        # Text message
-        text_message = update.channel_post.text_html
-        # print(f"Text message: {text_message}")
-
-    elif update.channel_post.photo:
-        # Image message
-        text_message = update.channel_post.caption
-        # print(f"Image caption: {text_message}")
-        file_id = update.channel_post.photo[-1].file_id # get the file id of the last photo in the message
-        file = context.bot.get_file(file_id) # get the file object
-        file.download(f"image_{file_id}.jpg") # download the file to a local file with the same name as the file id
-        file_type = 'image'
-    
-    elif update.channel_post.video:
-        # video message
-        text_message = update.channel_post.caption
-        file_id = update.channel_post.video.file_id # get the file id of the last video in the message
-        file = context.bot.get_file(file_id) # get the file object
-        file.download(f"video_{file_id}.MP4") # download the file to a local file with the same name as the file id
-        file_type = 'video'
-        
-    # Extract TaskId from the message
-    task_id_start = text_message.find('TaskId:')
-    if task_id_start != -1:
-        task_id_end = text_message.find('\n', task_id_start)
-        if task_id_end != -1:
-            task_id = text_message[task_id_start + len('TaskId:'):task_id_end].strip()
-            # Check if TaskId has been processed before
-            if task_id not in processed_task_ids:
-                # Extract the plain text line after the id
-                text_start = task_id_end + 1
-                plain_text = text_message[text_start:].strip()
-
-                # Process the plain text as needed
-                print(f"New TaskId: {task_id}, Plain Text: {plain_text}")
-                
-                # Add the TaskId to the set of processed TaskIds
-                processed_task_ids.add(task_id)
-
-                # Add new tweets using the task
-                   # Now, read Twitter cookies from 'twitter_cookies.txt' and send a tweet for each set of cookies
-                with open('twitter_cookies.txt', 'r') as cookies_file:
-                    for line in cookies_file:
-                        auth_token_value, ct0_value, user = line.strip().split('|')
-                        filename = ''
-                        # Known filename in the current directory
-                        if file_id:
-                            if file_type =='image':
-                                filename = os.path.join(os.getcwd(), f"image_{file_id}.jpg")
-                            else:
-                                filename = os.path.join(os.getcwd(), f"video_{file_id}.MP4")
-
-                        # Assuming you have a function to send tweets
-                        send_tweet(auth_token_value, ct0_value, plain_text,user,task_id,filename)
-
-                        # Introduce random delays between API requests
-                        random_delay = random.uniform(25, 50)
-                        time.sleep(random_delay)
-                if file_id:
-                    os.remove(filename)
-
-
-# Function to send tweets using auth_token_value, ct0_value, and plain_text
-def send_tweet(auth_token_value, ct0_value, plain_text,user,task_id,filename):
-    hashtags = ["#BringThemHomeNow", "#בחירות_עכשיו", "#הדחה_עכשיו"]
-    tweet_content = f"{plain_text} {random.choice(hashtags)} "
-    account = Account(cookies={"ct0": ct0_value, "auth_token": auth_token_value})
-    if filename:
-        account.tweet(tweet_content,media=[{'media': filename, 'alt': plain_text}])
-    else :
-         account.tweet(tweet_content)
-    # print(f"New TaskId: {task_id}, Finished for user: {user}")
-    print(f"New TaskId: {task_id}, Finished for user: {user}")
-
-
 def main():
-    # Create the Updater and pass it your bot's token
-    updater = Updater(bot_token, use_context=True)
+    print(f"Now We check the Nodes")
 
-    # Get the dispatcher to register handlers
-    dp = updater.dispatcher
-
-    # Register command handlers
-    dp.add_handler(CommandHandler("start", start))
-
-    # Register message handler for all messages in the specified channel
-    dp.add_handler(MessageHandler(Filters.chat(-1002145816659), handle_new_message))
-
-    # Start the Bot
-    updater.start_polling()
-
-    # Run the bot until you send a signal to stop it
-    # updater.idle()
 
 if __name__ == '__main__':
     import uvicorn
