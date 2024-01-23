@@ -3,10 +3,32 @@ import time
 from datetime import datetime, timedelta, timezone
 
 import pytz
+from fastapi import BackgroundTasks, FastAPI, HTTPException
 
 from account import Account
 from scraper import Scraper
 
+
+app = FastAPI()
+
+
+@app.get("/")
+def read_root():
+    return {"Welcome ": "Node1 - Scrapper..."}
+
+@app.on_event("startup")
+async def startup_event():
+    print('Node1 Server started---- :', datetime.datetime.now())
+    global is_task_running
+    is_task_running = True
+    main()
+
+# Stop the main logic function at shutdown
+@app.on_event("shutdown")
+async def shutdown_event():
+    global is_task_running
+    is_task_running = False
+    
 reply_cookie_file_path = 'twitter_reply_cookies.txt'
 scrap_cookie_file_path = 'twitter_scrap_cookies.txt'
 target_ids_file = 'target_user_ids.txt'
@@ -152,18 +174,24 @@ def initialize_scraper()-> Scraper:
                 return scraper
         except Exception as e:
             print(f"Exception in initialize_scraper Error: {e}")
-# Run the function every hour
-while True:
-    scraper = initialize_scraper()
-    latest_entries_list = get_user_last_tweets(scraper, TweetEntry)
-    # # Print details
-    for index, entry in enumerate(latest_entries_list, start=1):
-        # print(f"Entry {index}: rest_id: {entry.rest_id}, is_edit_eligible: {entry.is_edit_eligible} , created_at: {entry.created_at}")
-        time_difference_minutes = get_time_difference_in_minutes(entry.created_at)
-        print(f"Time difference: {time_difference_minutes}")
-        # Tweet less than 5 minutes, means it's new, we will reply
-        if time_difference_minutes < 10:
-            print(f"Entry {index}: rest_id: {entry.rest_id}, is_edit_eligible: {entry.is_edit_eligible} , created_at: {entry.created_at}")
-            send_reply( entry.rest_id)
-    time.sleep(3600)  # Sleep for 1 hour (3600 seconds)
 
+
+def main():
+    # Run the function every hour
+    while True:
+        scraper = initialize_scraper()
+        latest_entries_list = get_user_last_tweets(scraper, TweetEntry)
+        # # Print details
+        for index, entry in enumerate(latest_entries_list, start=1):
+            # print(f"Entry {index}: rest_id: {entry.rest_id}, is_edit_eligible: {entry.is_edit_eligible} , created_at: {entry.created_at}")
+            time_difference_minutes = get_time_difference_in_minutes(entry.created_at)
+            print(f"Time difference: {time_difference_minutes}")
+            # Tweet less than 5 minutes, means it's new, we will reply
+            if time_difference_minutes < 10:
+                print(f"Entry {index}: rest_id: {entry.rest_id}, is_edit_eligible: {entry.is_edit_eligible} , created_at: {entry.created_at}")
+                send_reply( entry.rest_id)
+        time.sleep(3600)  # Sleep for 1 hour (3600 seconds)
+
+if __name__ == '__main__':
+    import uvicorn
+    uvicorn.run(app, host="127.0.0.1", port=8000)
