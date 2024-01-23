@@ -20,7 +20,7 @@ def read_root():
 
 @app.on_event("startup")
 async def startup_event():
-    print('Node1 Server started---- :', datetime.datetime.now())
+    print('Node1 Server started---- :', datetime.now())
     global is_task_running
     is_task_running = True
     main()
