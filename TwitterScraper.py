@@ -11,6 +11,8 @@ from scraper import Scraper
 
 app = FastAPI()
 
+# Variable to control the task execution
+is_task_running = False
 
 @app.get("/")
 def read_root():
@@ -28,7 +30,7 @@ async def startup_event():
 async def shutdown_event():
     global is_task_running
     is_task_running = False
-    
+
 reply_cookie_file_path = 'twitter_reply_cookies.txt'
 scrap_cookie_file_path = 'twitter_scrap_cookies.txt'
 target_ids_file = 'target_user_ids.txt'
