@@ -18,18 +18,30 @@ is_task_running = False
 def read_root():
     return {"Welcome ": "Node1 - Scrapper..."}
 
+
 @app.on_event("startup")
 async def startup_event():
-    print('Node1 Server started---- :', datetime.now())
+    print('Node Scrapper Server started---- :', datetime.now())
+
+
+def start_scrap_background():
     global is_task_running
     is_task_running = True
-    main()
+    main() 
 
-# Stop the main logic function at shutdown
-@app.on_event("shutdown")
-async def shutdown_event():
+@app.get("/start-scrap")
+async def start_scrap(background_tasks: BackgroundTasks):
+    background_tasks.add_task(start_scrap_background)
+    return {"message": "Scrapper will start in the background..."}
+
+
+@app.get("/stop-scrap")
+async def start_scrap(background_tasks: BackgroundTasks):
     global is_task_running
     is_task_running = False
+    return {"message": "Scrapper will stop now..."}
+
+
 
 reply_cookie_file_path = 'twitter_reply_cookies.txt'
 scrap_cookie_file_path = 'twitter_scrap_cookies.txt'
@@ -180,7 +192,7 @@ def initialize_scraper()-> Scraper:
 
 def main():
     # Run the function every hour
-    while True:
+    while is_task_running:
         scraper = initialize_scraper()
         latest_entries_list = get_user_last_tweets(scraper, TweetEntry)
         # # Print details
