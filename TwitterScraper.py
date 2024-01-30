@@ -1,27 +1,265 @@
 import random
 import time
 from datetime import datetime, timedelta, timezone
-
 import pytz
-from fastapi import BackgroundTasks, FastAPI, HTTPException
-
+from typing import List
+from fastapi import BackgroundTasks, FastAPI, HTTPException,File, Depends, UploadFile, Header,Query
 from account import Account
 from scraper import Scraper
+from fastapi.security import APIKeyHeader
+from fastapi.responses import JSONResponse,PlainTextResponse
+from fastapi.background import BackgroundTasks
+
+description = """
+
+## Isnad Scrap - Util API <img src=\'https://flagcdn.com/24x18/ps.png\'> 🔻🔻🔻
 
 
-app = FastAPI()
+Isnad scrap is a powerful tool designed to streamline interactions with the Twitter platform automatically.
+
+The following APIs provide various services for managing user cookies, handling target user IDs, and reading file contents.
+
+**Key Features:**
+
+- **Upload Main User Cookies:**
+    Upload the main Twitter user cookies responsible for actions like replying to or liking tweets. 
+    The uploaded file should follow the format: `auth_token_value|ct0_value|username`, with each record on a new line.
+
+- **Upload Scrap Cookies:**
+    Update the list of scrap Twitter user cookies, specifically used for searching recent tweets. 
+    The file format should match that of main user cookies.
+
+- **Upload Target User IDs:**
+    Maintain a list of target Twitter user IDs, exclusively used for searching recent tweets. 
+     Each line in the uploaded file should represent a Twitter user ID.
+
+- **Read File Content:**
+    Retrieve the content of a specified file, providing each line in a proper format. 
+    Ideal for accessing stored information or logs.
+
+**Authentication:**
+    
+Access to these services is protected by an API key mechanism. Users must provide a valid API key in the request header for authentication.
+
+**How to Use:**
+    
+- To upload main user cookies: Use the `/upload-reply-cookie/` endpoint with the appropriate API key.
+    
+- To upload scrap cookies: Utilize the `/upload-scrap-cookie/` endpoint with the correct API key.
+    
+- To upload target user IDs: Use the `/upload-target-ids/` endpoint, ensuring the provided API key is valid.
+    
+- To read file content: Access the `/read-file-content/` endpoint, specifying the file name and providing the API key for authentication.
+
+    
+
+
+
+**Obtaining an API Key:**
+    
+For users requiring an API key, please contact `M Mansour` for assistance.
+
+"""
+
+app = FastAPI(title="Isnad Bot" ,
+    description=description,
+    summary="Isnad Scrap - Util API.",
+    version="0.0.1",swagger_ui_parameters={"defaultModelsExpandDepth": -1}
+)
 
 # Variable to control the task execution
 is_task_running = False
 
-@app.get("/")
+API_KEY = "your-secret-key"  # Replace with your secret key
+API_KEY_ADMIN = "your-secret-key-admin"  # Replace with your secret key
+
+reply_cookie_file_path = 'twitter_reply_cookies.txt'
+scrap_cookie_file_path = 'twitter_scrap_cookies.txt'
+target_ids_file = 'target_user_ids.txt'
+
+
+# Dependency to check the API key and its associated services
+async def get_api_key(api_key: str = Header(..., description="API key for authentication")):
+    """
+    Get API Key
+
+    Validates the provided API key for authentication.
+
+    - **api_key**: API key for authentication.
+
+    Returns the validated API key.
+    """
+    if api_key not in [API_KEY, API_KEY_ADMIN]:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid API key",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    return api_key
+
+# Dependency to check the admin API key
+def get_admin_api_key(api_key: str = Header(..., description="Admin API key for authentication")):
+    if api_key != API_KEY_ADMIN:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid admin API key",
+        )
+    return api_key
+
+
+@app.get("/", include_in_schema=False)
 def read_root():
-    return {"Welcome ": "Node1 - Scrapper..."}
+    return {"Isnad ": "Scrapper🔻🔻🔻"}
 
 
 @app.on_event("startup")
 async def startup_event():
     print('Node Scrapper Server started---- :', datetime.now())
+
+
+# Define a function to check if the file is a text file
+def is_text_file(file: UploadFile):
+    if not file.content_type.startswith("text/"):
+        raise HTTPException(
+            status_code=400,
+            detail="Only text files are allowed",
+        )
+
+
+@app.get("/read-file-content/", response_class=PlainTextResponse)
+async def read_file_content(
+    file_name: str = Query(..., title="File Name", description="Name of the file to read."),
+    api_key: str = Depends(get_api_key),
+):
+    """
+    Read File Content
+
+    Reads the content of the specified file and responds with each line in proper format.
+
+    - **file_name**: Name of the file to read, including the extension, ex: .txt.
+    - **api_key**: API key for authentication.
+
+    Returns the content of the file as plain text.
+    """
+    try:
+        with open(file_name, "r") as file:
+            content = file.read()
+        return content
+    except FileNotFoundError:
+        raise HTTPException(
+            status_code=404,
+            detail=f"File '{file_name}' not found.",
+        )
+
+# reply_cookie_file_path = 'twitter_reply_cookies.txt'
+@app.post("/upload-reply-cookie/")
+async def upload_reply_cookie(
+    file: UploadFile = File(...),
+    api_key: str = Depends(get_api_key),
+    replace_existing: bool = Query(default=False, description="Whether to replace existing content in twitter_reply_cookies.txt"),_: bool = Depends(is_text_file),):
+
+    """
+    Upload main user Cookies
+
+    Update the list the main Twitter user cookies, who will reply/like the tweets.
+
+    - **file**: List of main Twitter user cookies, the format should be auth_token_value|ct0_value|username, one record in each line. 
+    - **api_key**: API key for authentication.
+    - **replace_existing**: Whether to replace existing content in twitter_reply_cookies.txt.
+
+    """
+    
+    contents = await file.read()
+
+    # Decode contents and split it into lines
+    lines = contents.decode("utf-8").splitlines()
+
+    # Open file in append mode or write mode based on replace_existing flag
+    mode = "w" if replace_existing else "a"
+
+    # Append or replace content in the existing file "twitter_reply_cookies.txt"
+    with open("twitter_reply_cookies.txt", mode, encoding="utf-8") as offline_file:
+        for line in lines:
+            if line.strip():  # Ignore empty lines
+                offline_file.write(line + "\n")
+
+    action = "Replaced" if replace_existing else "Appended"
+    return JSONResponse(content={"message": f"File content {action} in twitter_reply_cookies.txt"}, status_code=200)
+
+
+# scrap_cookie_file_path = 'twitter_scrap_cookies.txt'
+@app.post("/upload-scrap-cookie/")
+async def upload_scrap_cookie(
+    file: UploadFile = File(...,title="Scrap Twitter Accounts", description="List of scrap Twitter user cookies, who will only be used for searching recent tweets."),
+    api_key: str = Depends(get_api_key),
+    replace_existing: bool = Query(default=False, description="Whether to replace existing content in twitter_scrap_cookies.txt"),_: bool = Depends(is_text_file),):
+
+    """
+    Upload scrap Cookies
+
+    Update the list of scrap Twitter user cookies, who will only be used for searching recent tweets.
+
+    - **file**: List of scrap Twitter user cookies, the format should be auth_token_value|ct0_value|username, one record in each line. 
+    - **api_key**: API key for authentication.
+    - **replace_existing**: Whether to replace existing content in twitter_scrap_cookies.txt.
+
+    """
+        
+    
+    contents = await file.read()
+
+    # Decode contents and split it into lines
+    lines = contents.decode("utf-8").splitlines()
+
+    # Open file in append mode or write mode based on replace_existing flag
+    mode = "w" if replace_existing else "a"
+
+    # Append or replace content in the existing file "twitter_scrap_cookies.txt"
+    with open("twitter_scrap_cookies.txt", mode, encoding="utf-8") as offline_file:
+        for line in lines:
+            if line.strip():  # Ignore empty lines
+                offline_file.write(line + "\n")
+
+    action = "Replaced" if replace_existing else "Appended"
+    return JSONResponse(content={"message": f"File content {action} in twitter_scrap_cookies.txt"}, status_code=200)
+
+
+# target_ids_file = 'target_user_ids.txt'
+@app.post("/upload-target-ids/")
+async def upload_target_ids(
+    file: UploadFile = File(..., description="Upload a text file containing reply cookies for Twitter."),
+    api_key: str = Depends(get_api_key),
+    replace_existing: bool = Query(default=False, description="Whether to replace existing content in target_user_ids.txt"),_: bool = Depends(is_text_file),):
+
+    
+    """
+    Upload target ids
+
+    Update the list of target Twitter Ids, who will only be used for searching recent tweets.
+
+    - **file**: List of target Twitter user Ids, the format should be twitter user id in each line
+    - **api_key**: API key for authentication.
+    - **replace_existing**: Whether to replace existing content in target_user_ids.txt.
+
+    """
+
+
+    contents = await file.read()
+
+    # Decode contents and split it into lines
+    lines = contents.decode("utf-8").splitlines()
+
+    # Open file in append mode or write mode based on replace_existing flag
+    mode = "w" if replace_existing else "a"
+
+    # Append or replace content in the existing file "target_user_ids.txt"
+    with open("target_user_ids.txt", mode, encoding="utf-8") as offline_file:
+        for line in lines:
+            if line.strip():  # Ignore empty lines
+                offline_file.write(line + "\n")
+
+    action = "Replaced" if replace_existing else "Appended"
+    return JSONResponse(content={"message": f"File content {action} in target_user_ids.txt"}, status_code=200)
 
 
 def start_scrap_background():
@@ -30,22 +268,17 @@ def start_scrap_background():
     main() 
 
 @app.get("/start-scrap")
-async def start_scrap(background_tasks: BackgroundTasks):
+async def start_scrap(background_tasks: BackgroundTasks,api_key: str = Depends(get_admin_api_key)):
     background_tasks.add_task(start_scrap_background)
     return {"message": "Scrapper will start in the background..."}
 
 
 @app.get("/stop-scrap")
-async def start_scrap(background_tasks: BackgroundTasks):
+async def start_scrap(background_tasks: BackgroundTasks,api_key: str = Depends(get_admin_api_key)):
     global is_task_running
     is_task_running = False
     return {"message": "Scrapper will stop now..."}
 
-
-
-reply_cookie_file_path = 'twitter_reply_cookies.txt'
-scrap_cookie_file_path = 'twitter_scrap_cookies.txt'
-target_ids_file = 'target_user_ids.txt'
 
 def get_time_difference_in_minutes(tweet_created_at):
     # Convert the tweet's creation time to a datetime object without timezone
@@ -191,6 +424,7 @@ def initialize_scraper()-> Scraper:
 
 
 def main():
+    # print('Run the function every hour')
     # Run the function every hour
     while is_task_running:
         scraper = initialize_scraper()
