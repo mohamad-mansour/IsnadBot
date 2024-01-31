@@ -1,3 +1,4 @@
+import logging
 import random
 import time
 from datetime import datetime, timedelta, timezone
@@ -7,8 +8,12 @@ from fastapi import BackgroundTasks, FastAPI, HTTPException,File, Depends, Uploa
 from account import Account
 from scraper import Scraper
 from fastapi.security import APIKeyHeader
-from fastapi.responses import JSONResponse,PlainTextResponse
+from fastapi.responses import JSONResponse,PlainTextResponse,HTMLResponse
 from fastapi.background import BackgroundTasks
+from fastapi.templating import Jinja2Templates
+
+logger = logging.getLogger(__name__)
+
 
 description = """
 
@@ -67,10 +72,12 @@ app = FastAPI(title="Isnad Bot" ,
     version="0.0.1",swagger_ui_parameters={"defaultModelsExpandDepth": -1}
 )
 
+# Configure logging to a file
+logging.basicConfig(filename="app.log", level=logging.INFO)
+
 # Variable to control the task execution
 is_task_running = False
 
-API_KEY = "your-secret-key"  # Replace with your secret key
 API_KEY_ADMIN = "your-secret-key-admin"  # Replace with your secret key
 
 reply_cookie_file_path = 'twitter_reply_cookies.txt'
@@ -78,24 +85,34 @@ scrap_cookie_file_path = 'twitter_scrap_cookies.txt'
 target_ids_file = 'target_user_ids.txt'
 
 
-# Dependency to check the API key and its associated services
+# Define a dictionary to store the mapping of userid to api_key
+user_api_key_map = {
+    "user1": "api_key_1",
+    "user2": "api_key_2",
+    "admin": API_KEY_ADMIN
+    # Add more users and their corresponding api keys
+}
+
+
+# Dependency to get the userid based on the provided api_key
 async def get_api_key(api_key: str = Header(..., description="API key for authentication")):
     """
-    Get API Key
+    Get User ID
 
-    Validates the provided API key for authentication.
+    Retrieves the userid based on the provided API key.
 
     - **api_key**: API key for authentication.
 
-    Returns the validated API key.
+    Returns the corresponding userid.
     """
-    if api_key not in [API_KEY, API_KEY_ADMIN]:
-        raise HTTPException(
-            status_code=401,
-            detail="Invalid API key",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    return api_key
+    for userid, key in user_api_key_map.items():
+        if key == api_key:
+            return userid
+    raise HTTPException(
+        status_code=401,
+        detail="Invalid API key",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
 
 # Dependency to check the admin API key
 def get_admin_api_key(api_key: str = Header(..., description="Admin API key for authentication")):
@@ -144,6 +161,7 @@ async def read_file_content(
     try:
         with open(file_name, "r") as file:
             content = file.read()
+        logging.info(f"User: {api_key} - read file {file_name}")
         return content
     except FileNotFoundError:
         raise HTTPException(
@@ -184,6 +202,7 @@ async def upload_reply_cookie(
                 offline_file.write(line + "\n")
 
     action = "Replaced" if replace_existing else "Appended"
+    logging.info(f"User: {api_key} - File content {action} in twitter_reply_cookies.txt")
     return JSONResponse(content={"message": f"File content {action} in twitter_reply_cookies.txt"}, status_code=200)
 
 
@@ -221,6 +240,7 @@ async def upload_scrap_cookie(
                 offline_file.write(line + "\n")
 
     action = "Replaced" if replace_existing else "Appended"
+    logging.info(f"User: {api_key} - File content {action} in twitter_scrap_cookies.txt")
     return JSONResponse(content={"message": f"File content {action} in twitter_scrap_cookies.txt"}, status_code=200)
 
 
@@ -259,7 +279,70 @@ async def upload_target_ids(
                 offline_file.write(line + "\n")
 
     action = "Replaced" if replace_existing else "Appended"
+    logging.info(f"User: {api_key} - File content {action} in target_user_ids.txt")
     return JSONResponse(content={"message": f"File content {action} in target_user_ids.txt"}, status_code=200)
+
+
+
+# target_ids_file = 'tweets_replies_list.txt'
+@app.post("/tweets-replies-list/")
+async def upload_tweets_replies(
+    file: UploadFile = File(..., description="Upload a text file containing the list of replies."),
+    api_key: str = Depends(get_api_key),
+    replace_existing: bool = Query(default=False, description="Whether to replace existing content in tweets_replies_list.txt"),_: bool = Depends(is_text_file),):
+
+    
+    """
+    Upload tweets replies
+
+    Update the list of replies, which will be used to reply to the recent tweets of targeted users.
+
+    - **file**: List of tweets replies, the format should be one reply in each line
+    - **api_key**: API key for authentication.
+    - **replace_existing**: Whether to replace existing content in tweets_replies_list.txt.
+
+    """
+
+
+    contents = await file.read()
+
+    # Decode contents and split it into lines
+    lines = contents.decode("utf-8").splitlines()
+
+    # Open file in append mode or write mode based on replace_existing flag
+    mode = "w" if replace_existing else "a"
+
+    # Append or replace content in the existing file "tweets_replies_list.txt"
+    with open("tweets_replies_list.txt", mode, encoding="utf-8") as offline_file:
+        for line in lines:
+            if line.strip():  # Ignore empty lines
+                offline_file.write(line + "\n")
+
+    action = "Replaced" if replace_existing else "Appended"
+    logging.info(f"User: {api_key} - File content {action} in tweets_replies_list.txt")
+    return JSONResponse(content={"message": f"File content {action} in tweets_replies_list.txt"}, status_code=200)
+
+
+
+# Log viewer
+@app.get("/logs", response_class=PlainTextResponse)
+async def read_logs(api_key: str = Depends(get_api_key)):
+    """
+    View Application Logs
+
+    Displays the application logs.
+
+    Returns logs.
+    """
+    try:
+        with open("app.log", "r") as file:
+            content = file.read()
+        return content
+    except FileNotFoundError:
+        raise HTTPException(
+            status_code=404,
+            detail=f"File app.log not found.",
+        )
 
 
 def start_scrap_background():
