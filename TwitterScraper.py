@@ -435,7 +435,7 @@ def main():
             time_difference_minutes = get_time_difference_in_minutes(entry.created_at)
             print(f"Time difference: {time_difference_minutes}")
             # Tweet less than 5 minutes, means it's new, we will reply
-            if time_difference_minutes < 10:
+            if time_difference_minutes < 5:
                 print(f"Entry {index}: rest_id: {entry.rest_id}, is_edit_eligible: {entry.is_edit_eligible} , created_at: {entry.created_at}")
                 send_reply( entry.rest_id)
         time.sleep(3600)  # Sleep for 1 hour (3600 seconds)
