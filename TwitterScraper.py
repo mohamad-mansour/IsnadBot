@@ -809,12 +809,11 @@ def initialize_scraper() -> Scraper:
 def main():
     # print('Run the function every hour')
     # Run the function every hour
-    is_db_exist, is_table_exist, is_table_empty = check_database_status(get_db)
+    is_db_exist, is_table_exist, is_table_empty = check_database_status()
     while is_task_running:
         scraper = initialize_scraper()
         # Check the status of the database and accounts table
-        is_db_exist, is_table_exist, is_table_empty = check_database_status(
-            get_db)
+        is_db_exist, is_table_exist, is_table_empty = check_database_status()
 
         if not is_db_exist or not is_table_exist or not is_table_empty:
             latest_entries_list = get_user_last_tweets_db(scraper, TweetEntry)
