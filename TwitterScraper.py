@@ -1,4 +1,5 @@
 import logging
+from logging.handlers import RotatingFileHandler
 import random
 import time
 from datetime import datetime, timedelta, timezone
@@ -16,9 +17,19 @@ from openpyxl import load_workbook
 from sqlalchemy.orm import Session
 from sqlalchemy.sql.expression import false
 
+# configure the log format
+formatter  = logging.Formatter('%(asctime)s - %(message)s')
 
+
+handler = RotatingFileHandler('app.log', maxBytes=1024*1024*10, backupCount=5)
+handler.setFormatter(formatter)
+# set the logging level to INFO
+logging.basicConfig(format='%(asctime)s %(message)s', level=logging.INFO)
+logging.getLogger('sqlalchemy').setLevel(logging.ERROR)
+
+# add the handler to the logger
 logger = logging.getLogger(__name__)
-
+logger.addHandler(handler)
 
 description = """
 
@@ -58,10 +69,16 @@ Access to these services is protected by an API key mechanism. Users must provid
 - To upload scrap cookies: Utilize the `/upload-scrap-cookie/` endpoint with the correct API key.
     
 - To upload target user IDs: Use the `/upload-target-ids/` endpoint, ensuring the provided API key is valid.
-    
-- To read file content: Access the `/read-file-content/` endpoint, specifying the file name and providing the API key for authentication.
 
+- To upload target user IDs as a DB excel: Use the `/upload-excel/` endpoint, providing an excel sheet of the accounts details and ensuring the provided API key is valid.
+
+- To upload tweets replies: Use the `/tweets-replies-list/` endpoint, ensuring the provided API key is valid.
+
+- To Check Target Account Details: Access the `/get-account/` specifying the account name and providing the API key for authentication.
+
+- To display logs: Access the `/logs/` endpoint.
     
+- To read file content: Access the `/read-file-content/` endpoint, specifying the file name and providing the API key for authentication.    
 
 
 
@@ -78,7 +95,7 @@ app = FastAPI(title="Isnad Bot",
               )
 
 # SQLite database setup
-DATABASE_URL = "sqlite:///./isnad999.db"
+DATABASE_URL = "sqlite:///./isnad9.db"
 engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 Base = declarative_base()
 
@@ -149,9 +166,6 @@ def check_database_status():
 
     return False, False, False
 
-
-# Configure logging to a file
-logging.basicConfig(filename="app.log", level=logging.INFO)
 
 # Variable to control the task execution
 is_task_running = False
@@ -253,9 +267,8 @@ async def read_file_content(
         with open(file_name, "r") as file:
             content = file.read()
 
-        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        logging.info(
-            f"Request at {timestamp} from UserID: {api_key} - read file {file_name}")
+        logger.info('Request from UserID: ' +
+                    str(api_key) + '- read file '+file_name)
         return content
     except FileNotFoundError:
         raise HTTPException(
@@ -298,9 +311,8 @@ async def upload_reply_cookie(
                 offline_file.write(line + "\n")
 
     action = "Replaced" if replace_existing else "Appended"
-    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    logging.info(
-        f"Request at {timestamp} from UserID: {api_key} - File content {action} in twitter_reply_cookies.txt")
+    logger.info('Request from UserID: '+api_key +
+                ' - File content '+action+' in twitter_reply_cookies.txt')
     return JSONResponse(content={"message": f"File content {action} in twitter_reply_cookies.txt"}, status_code=200)
 
 
@@ -338,9 +350,8 @@ async def upload_scrap_cookie(
                 offline_file.write(line + "\n")
 
     action = "Replaced" if replace_existing else "Appended"
-    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    logging.info(
-        f"Request at {timestamp} from UserID: {api_key} - File content {action} in twitter_scrap_cookies.txt")
+    logger.info('Request from UserID: '+api_key +
+                ' - File content '+action+' in twitter_scrap_cookies.txt')
     return JSONResponse(content={"message": f"File content {action} in twitter_scrap_cookies.txt"}, status_code=200)
 
 
@@ -378,9 +389,8 @@ async def upload_target_ids(
                 offline_file.write(line + "\n")
 
     action = "Replaced" if replace_existing else "Appended"
-    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    logging.info(
-        f"Request at {timestamp} from UserID: {api_key} - File content {action} in target_user_ids.txt")
+    logger.info('Request from UserID: '+api_key +
+                ' - File content '+action+' in target_user_ids.txt')
     return JSONResponse(content={"message": f"File content {action} in target_user_ids.txt"}, status_code=200)
 
 
@@ -418,9 +428,8 @@ async def upload_tweets_replies(
                 offline_file.write(line + "\n")
 
     action = "Replaced" if replace_existing else "Appended"
-    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    logging.info(
-        f"Request at {timestamp} from UserID: {api_key} - File content {action} in tweets_replies_list.txt")
+    logger.info('Request from UserID: '+api_key +
+                ' - File content '+action+' in tweets_replies_list.txt')
     return JSONResponse(content={"message": f"File content {action} in tweets_replies_list.txt"}, status_code=200)
 
 
@@ -442,72 +451,83 @@ async def upload_excel(
     db: Session = Depends(get_db)
 ):
     """
-    Upload Excel File and Add Data to Database
+    Upload Excel File and Add or Update Data in Database
 
-    Allows the application to upload an Excel file, extract data, and add it to the database.
+    Allows the application to upload an Excel file, extract data, and add or update it in the database.
 
     - **file**: Upload an Excel file.
     - **db**: Database session.
 
     Returns a confirmation message.
     """
-    # Load Excel file and extract data
-    workbook = load_workbook(file.file)
-    sheet = workbook.active
+    try:
+        # Load Excel file and extract data
+        workbook = load_workbook(file.file)
+        sheet = workbook.active
 
-    # Map column names to indices
-    header = sheet[1]
-    column_indices = {header[i].value: i for i in range(len(header))}
+        # Map column names to indices
+        header = sheet[1]
+        column_indices = {header[i].value: i for i in range(len(header))}
 
-    # Extract data from the Excel sheet and add it to the database
-    for row in sheet.iter_rows(min_row=2, values_only=True):
-        account_data = {
-            "account_name": row[column_indices["ACCOUNT_NAME"]],
-            "account_id": row[column_indices["ACCOUNT_ID"]],
-            "account_link": row[column_indices["ACCOUNT_LINK"]],
-            "account_status": row[column_indices["ACCOUNT_STATUS"]],
-            "account_category": row[column_indices["ACCOUNT_CATEGORY"]],
-            "account_type": row[column_indices["ACCOUNT_TYPE"]],
-            "publishing_level": row[column_indices["PUBLISHING_LEVEL"]],
-            "access_level": row[column_indices["ACCESS_LEVEL"]],
-        }
+        # Extract data from the Excel sheet and add or update it in the database
+        for row in sheet.iter_rows(min_row=2, values_only=True):
+            account_data = {
+                "account_name": row[column_indices["ACCOUNT_NAME"]],
+                "account_id": row[column_indices["ACCOUNT_ID"]],
+                "account_link": row[column_indices["ACCOUNT_LINK"]],
+                "account_status": row[column_indices["ACCOUNT_STATUS"]],
+                "account_category": row[column_indices["ACCOUNT_CATEGORY"]],
+                "account_type": row[column_indices["ACCOUNT_TYPE"]],
+                "publishing_level": row[column_indices["PUBLISHING_LEVEL"]],
+                "access_level": row[column_indices["ACCESS_LEVEL"]],
+            }
 
-        db_account = Account(**account_data)
-        db.add(db_account)
+            # Check if the record exists based on unique identifier (account_id)
+            existing_record = db.query(Account).filter(Account.account_id == account_data["account_id"]).first()
 
-    db.commit()
-    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    logging.info(
-        f"Request at {timestamp} from UserID: {api_key} - Data added to the database successfully.")
-    return JSONResponse(content={"message": "Data added to the database successfully."}, status_code=200)
+            if existing_record:
+                # Update existing record with new values
+                for key, value in account_data.items():
+                    setattr(existing_record, key, value)
+            else:
+                # Create a new record and add it to the database
+                db_account = Account(**account_data)
+                db.add(db_account)
+
+        db.commit()
+        logger.info('Request from UserID: ' +
+                    api_key+' - Data added or updated in the database successfully')
+        return JSONResponse(content={"message": "Data added or updated in the database successfully."}, status_code=200)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error processing Excel file: {str(e)}")
 
 
-# Endpoint to get account details by ACCOUNT_ID
+# Endpoint to get account details by ACCOUNT_NAME
 @app.get("/get-account/")
 async def get_account(
         api_key: str = Depends(get_api_key),
-        account_id: str = Query(..., title="Account Id", description="The ACCOUNT_ID to retrieve details for."), db: Session = Depends(get_db)):
+        account_name: str = Query(..., title="Account Id", description="The ACCOUNT_NAME to retrieve details for."), db: Session = Depends(get_db)):
     """
-    Get Account Details by ACCOUNT_ID
+    Get Account Details by ACCOUNT_NAME
 
-    Allows the application to retrieve account details from the database based on the provided ACCOUNT_ID.
+    Allows the application to retrieve account details from the database based on the provided ACCOUNT_NAME.
 
-    - **account_id**: The ACCOUNT_ID to retrieve details for.
+    - **account_name**: The ACCOUNT_NAME to retrieve details for.
     - **db**: Database session.
 
     Returns account details.
     """
     account = db.query(Account).filter(
-        Account.account_id == account_id).first()
+        Account.account_name == account_name).first()
 
     if not account:
         raise HTTPException(
             status_code=404,
             detail="Account not found",
         )
-    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    logging.info(
-        f"Request at {timestamp} from UserID: {api_key} - Search for ACCOUNT_ID {account_id} .")
+
+    logger.info('Request from UserID: '+api_key +
+                ' - Search for ACCOUNT_NAME'+account_name+' .')
 
     return {
         "account_name": account.account_name,
@@ -522,6 +542,32 @@ async def get_account(
         "is_used": account.is_used,
         "created_at": account.created_at
     }
+
+
+# Log viewer
+@app.get("/logs", response_class=PlainTextResponse)
+async def read_logs(api_key: str = Depends(get_api_key)):
+    """
+    View Application Logs
+
+    Displays the application logs.
+
+    Returns logs.
+    """
+    try:
+        with open("app.log", "r", encoding="utf-8") as file:
+            logs = file.readlines()
+
+        # Reverse the order of logs to get the most recent entries first
+        logs.reverse()
+
+        content = "".join(logs)
+        return content
+    except FileNotFoundError:
+        raise HTTPException(
+            status_code=404,
+            detail=f"File app.log not found.",
+        )
 
 
 def start_scrap_background():
@@ -652,12 +698,12 @@ def get_user_last_tweets_db(scraper, TweetEntry):
         # Reset is_used for all accounts to False and retry the query
         session.query(Account).update({Account.is_used: false()})
         session.commit()
-        
+
         accounts = (session.query(Account)
-                .filter(Account.is_used == false())
-                .order_by(Account.publishing_level, Account.access_level)
-                .all()
-                )
+                    .filter(Account.is_used == false())
+                    .order_by(Account.publishing_level, Account.access_level)
+                    .all()
+                    )
 
     latest_entries = []
     for account in accounts:
@@ -728,7 +774,8 @@ def send_reply(tweet_id):
         account = Account(
             cookies={"ct0": cookie_data[0][1], "auth_token": cookie_data[0][0]})
         account.reply(tweet_content, tweet_id=tweet_id)
-        logging.info(f"{cookie_data[0][2]} finsihed reply on tweet {tweet_id}")
+        logger.info('User ' +
+                    cookie_data[0][2] + ' finsihed reply on tweet: ' + str(tweet_id))
         print(f"{cookie_data[0][2]} finsihed reply on tweet {tweet_id}")
         pass
     except Exception as e:
