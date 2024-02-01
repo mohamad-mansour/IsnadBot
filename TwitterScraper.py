@@ -4,13 +4,18 @@ import time
 from datetime import datetime, timedelta, timezone
 import pytz
 from typing import List
-from fastapi import BackgroundTasks, FastAPI, HTTPException,File, Depends, UploadFile, Header,Query
+from fastapi import BackgroundTasks, FastAPI, HTTPException, File, Depends, UploadFile, Header, Query, Path
 from account import Account
 from scraper import Scraper
-from fastapi.security import APIKeyHeader
-from fastapi.responses import JSONResponse,PlainTextResponse,HTMLResponse
+from fastapi.responses import JSONResponse, PlainTextResponse
 from fastapi.background import BackgroundTasks
-from fastapi.templating import Jinja2Templates
+from sqlalchemy import create_engine, Column, Integer, String, DateTime, inspect, Boolean, desc
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker
+from openpyxl import load_workbook
+from sqlalchemy.orm import Session
+from sqlalchemy.sql.expression import false
+
 
 logger = logging.getLogger(__name__)
 
@@ -66,11 +71,84 @@ For users requiring an API key, please contact `M Mansour` for assistance.
 
 """
 
-app = FastAPI(title="Isnad Bot" ,
-    description=description,
-    summary="Isnad Scrap - Util API.",
-    version="0.0.1",swagger_ui_parameters={"defaultModelsExpandDepth": -1}
-)
+app = FastAPI(title="Isnad Bot",
+              description=description,
+              summary="Isnad Scrap - Util API.",
+              version="0.0.1", swagger_ui_parameters={"defaultModelsExpandDepth": -1}
+              )
+
+# SQLite database setup
+DATABASE_URL = "sqlite:///./isnad999.db"
+engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+Base = declarative_base()
+
+
+class Account(Base):
+    __tablename__ = "accounts"
+
+    id = Column(Integer, primary_key=True, index=True)
+    account_name = Column(String, index=True)
+    account_id = Column(String)
+    account_link = Column(String)
+    account_status = Column(String)
+    account_category = Column(String)
+    account_type = Column(String)
+    publishing_level = Column(String)
+    access_level = Column(String)
+    is_used = Column(Boolean, default=false())
+    video_enabled = Column(Boolean, default=false())
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+Base.metadata.create_all(bind=engine)
+
+# Dependency to get the database session
+
+
+def get_db():
+    # Step 5: Insert data into the database
+    Session = sessionmaker(bind=engine)
+    session = Session()
+    # db = session
+    try:
+        yield session
+    finally:
+        session.close()
+
+
+def is_database_empty():
+    """
+    Check if the accounts table is empty.
+
+    - **db**: Database session.
+
+    Returns a boolean indicating whether the accounts table is empty.
+    """
+    Session = sessionmaker(bind=engine)
+    session = Session()
+    return not session.query(Account).first()
+
+
+def check_database_status():
+    """
+    Check the status of the database and accounts table.
+
+    - **db**: Database session.
+
+    Returns a tuple (is_database_exist, is_table_exist, is_table_empty).
+    """
+    inspector = inspect(engine)
+    is_database_exist = inspector.get_schema_names()
+
+    if is_database_exist:
+        is_table_exist = inspector.get_table_names()
+
+        if is_table_exist and "accounts" in is_table_exist:
+            is_table_empty = is_database_empty()
+            return True, True, is_table_empty
+
+    return False, False, False
+
 
 # Configure logging to a file
 logging.basicConfig(filename="app.log", level=logging.INFO)
@@ -78,7 +156,7 @@ logging.basicConfig(filename="app.log", level=logging.INFO)
 # Variable to control the task execution
 is_task_running = False
 
-API_KEY_ADMIN = "your-secret-key-admin"  # Replace with your secret key
+API_KEY_ADMIN = "iSLgvYQMFbExJGIVpJHEOEHnYxyzT4Fcr5xfSVG2Sn0q5FcrylK72Pgs3ctg0Cyp"
 
 reply_cookie_file_path = 'twitter_reply_cookies.txt'
 scrap_cookie_file_path = 'twitter_scrap_cookies.txt'
@@ -87,8 +165,18 @@ target_ids_file = 'target_user_ids.txt'
 
 # Define a dictionary to store the mapping of userid to api_key
 user_api_key_map = {
-    "user1": "api_key_1",
-    "user2": "api_key_2",
+    "user1": "Hw1MXuWmKwsG4UXlRITVvS3vkKd5xvkiKD2Z9lXPvXZ5tuUEsTGAfqT8m8AnNGuo",
+    "user2": "ERGZdjZqumtfZccYmpYwIlAO83RrqATioi6OUXQI8iiVZtG3xiKBfGgPjqgMwdvw",
+    "user3": "WbpClFZ2HnsNgbYBwsoYeVFqUGYu64a71Thj7qHA9xE7ca8zjKFw1rOQzohwVOKX",
+    "user4": "wRkBnrIMx20TPYRduKsq3SXfc8WkXh0Pj3H0hGYGJBT7qoXXxYMzTMk4JUqkyMsl",
+    "user5": "AfIZUKMWVNo0KDnMdinHqaFIZnDgEWzDBw2PgubmffcQzUj9Lh5WaTz3ilzFx8Dp",
+    "user6": "XQ5ihKJl2GqUvMM8O0Fs06UmZy6d0EeF4u3QLAMVbppzJETTul90PhQh7vI9oC4R",
+    "user7": "fEpvjfO0oZr4fb3ncjQyAYdOc3DdkiCEhlKfBiNa8biHRHTly2duw20C44QZHBCf",
+    "user8": "fKrFNeOwapEe7XrIiTRl9ufMbmxEaNGazYpemjb2VVkS8Z40fYVtgQMC46A26K7o",
+    "user9": "wJkclhGS7ROCf13YncA69meOp7sdK5iAp9ofMYxbAUc9Gm7fFJ94Xj8EEnTqIEDq",
+    "user10": "RpnNbdW9sN8zVddnuHrsFG0I2VMzY2VBI5tnrHhYqVrXiovvNsqHBNkpwjSwyyJf",
+    "user2": "SedkImeAadVNu6TloPajo4ekQohXe5yWAi7aEb7aeeHVOeYqvI464Uj9cVXhjoVF",
+    "user2": "onHGZ9U57aYeRWUiwoIpdRK4DVhCybGCQLO6xHXtW4SimPtas3j8f4K6OPpTVCEh",
     "admin": API_KEY_ADMIN
     # Add more users and their corresponding api keys
 }
@@ -115,6 +203,8 @@ async def get_api_key(api_key: str = Header(..., description="API key for authen
     )
 
 # Dependency to check the admin API key
+
+
 def get_admin_api_key(api_key: str = Header(..., description="Admin API key for authentication")):
     if api_key != API_KEY_ADMIN:
         raise HTTPException(
@@ -145,7 +235,8 @@ def is_text_file(file: UploadFile):
 
 @app.get("/read-file-content/", response_class=PlainTextResponse)
 async def read_file_content(
-    file_name: str = Query(..., title="File Name", description="Name of the file to read."),
+    file_name: str = Query(..., title="File Name",
+                           description="Name of the file to read."),
     api_key: str = Depends(get_api_key),
 ):
     """
@@ -161,7 +252,10 @@ async def read_file_content(
     try:
         with open(file_name, "r") as file:
             content = file.read()
-        logging.info(f"User: {api_key} - read file {file_name}")
+
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        logging.info(
+            f"Request at {timestamp} from UserID: {api_key} - read file {file_name}")
         return content
     except FileNotFoundError:
         raise HTTPException(
@@ -170,11 +264,13 @@ async def read_file_content(
         )
 
 # reply_cookie_file_path = 'twitter_reply_cookies.txt'
+
+
 @app.post("/upload-reply-cookie/")
 async def upload_reply_cookie(
-    file: UploadFile = File(...),
-    api_key: str = Depends(get_api_key),
-    replace_existing: bool = Query(default=False, description="Whether to replace existing content in twitter_reply_cookies.txt"),_: bool = Depends(is_text_file),):
+        file: UploadFile = File(...),
+        api_key: str = Depends(get_api_key),
+        replace_existing: bool = Query(default=False, description="Whether to replace existing content in twitter_reply_cookies.txt"), _: bool = Depends(is_text_file),):
 
     """
     Upload main user Cookies
@@ -186,7 +282,7 @@ async def upload_reply_cookie(
     - **replace_existing**: Whether to replace existing content in twitter_reply_cookies.txt.
 
     """
-    
+
     contents = await file.read()
 
     # Decode contents and split it into lines
@@ -202,16 +298,19 @@ async def upload_reply_cookie(
                 offline_file.write(line + "\n")
 
     action = "Replaced" if replace_existing else "Appended"
-    logging.info(f"User: {api_key} - File content {action} in twitter_reply_cookies.txt")
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    logging.info(
+        f"Request at {timestamp} from UserID: {api_key} - File content {action} in twitter_reply_cookies.txt")
     return JSONResponse(content={"message": f"File content {action} in twitter_reply_cookies.txt"}, status_code=200)
 
 
 # scrap_cookie_file_path = 'twitter_scrap_cookies.txt'
 @app.post("/upload-scrap-cookie/")
 async def upload_scrap_cookie(
-    file: UploadFile = File(...,title="Scrap Twitter Accounts", description="List of scrap Twitter user cookies, who will only be used for searching recent tweets."),
-    api_key: str = Depends(get_api_key),
-    replace_existing: bool = Query(default=False, description="Whether to replace existing content in twitter_scrap_cookies.txt"),_: bool = Depends(is_text_file),):
+        file: UploadFile = File(..., title="Scrap Twitter Accounts",
+                                description="List of scrap Twitter user cookies, who will only be used for searching recent tweets."),
+        api_key: str = Depends(get_api_key),
+        replace_existing: bool = Query(default=False, description="Whether to replace existing content in twitter_scrap_cookies.txt"), _: bool = Depends(is_text_file),):
 
     """
     Upload scrap Cookies
@@ -223,8 +322,7 @@ async def upload_scrap_cookie(
     - **replace_existing**: Whether to replace existing content in twitter_scrap_cookies.txt.
 
     """
-        
-    
+
     contents = await file.read()
 
     # Decode contents and split it into lines
@@ -240,18 +338,20 @@ async def upload_scrap_cookie(
                 offline_file.write(line + "\n")
 
     action = "Replaced" if replace_existing else "Appended"
-    logging.info(f"User: {api_key} - File content {action} in twitter_scrap_cookies.txt")
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    logging.info(
+        f"Request at {timestamp} from UserID: {api_key} - File content {action} in twitter_scrap_cookies.txt")
     return JSONResponse(content={"message": f"File content {action} in twitter_scrap_cookies.txt"}, status_code=200)
 
 
 # target_ids_file = 'target_user_ids.txt'
 @app.post("/upload-target-ids/")
 async def upload_target_ids(
-    file: UploadFile = File(..., description="Upload a text file containing reply cookies for Twitter."),
-    api_key: str = Depends(get_api_key),
-    replace_existing: bool = Query(default=False, description="Whether to replace existing content in target_user_ids.txt"),_: bool = Depends(is_text_file),):
+        file: UploadFile = File(
+            ..., description="Upload a text file containing reply cookies for Twitter."),
+        api_key: str = Depends(get_api_key),
+        replace_existing: bool = Query(default=False, description="Whether to replace existing content in target_user_ids.txt"), _: bool = Depends(is_text_file),):
 
-    
     """
     Upload target ids
 
@@ -262,7 +362,6 @@ async def upload_target_ids(
     - **replace_existing**: Whether to replace existing content in target_user_ids.txt.
 
     """
-
 
     contents = await file.read()
 
@@ -279,19 +378,20 @@ async def upload_target_ids(
                 offline_file.write(line + "\n")
 
     action = "Replaced" if replace_existing else "Appended"
-    logging.info(f"User: {api_key} - File content {action} in target_user_ids.txt")
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    logging.info(
+        f"Request at {timestamp} from UserID: {api_key} - File content {action} in target_user_ids.txt")
     return JSONResponse(content={"message": f"File content {action} in target_user_ids.txt"}, status_code=200)
-
 
 
 # target_ids_file = 'tweets_replies_list.txt'
 @app.post("/tweets-replies-list/")
 async def upload_tweets_replies(
-    file: UploadFile = File(..., description="Upload a text file containing the list of replies."),
-    api_key: str = Depends(get_api_key),
-    replace_existing: bool = Query(default=False, description="Whether to replace existing content in tweets_replies_list.txt"),_: bool = Depends(is_text_file),):
+        file: UploadFile = File(...,
+                                description="Upload a text file containing the list of replies."),
+        api_key: str = Depends(get_api_key),
+        replace_existing: bool = Query(default=False, description="Whether to replace existing content in tweets_replies_list.txt"), _: bool = Depends(is_text_file),):
 
-    
     """
     Upload tweets replies
 
@@ -302,7 +402,6 @@ async def upload_tweets_replies(
     - **replace_existing**: Whether to replace existing content in tweets_replies_list.txt.
 
     """
-
 
     contents = await file.read()
 
@@ -319,45 +418,126 @@ async def upload_tweets_replies(
                 offline_file.write(line + "\n")
 
     action = "Replaced" if replace_existing else "Appended"
-    logging.info(f"User: {api_key} - File content {action} in tweets_replies_list.txt")
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    logging.info(
+        f"Request at {timestamp} from UserID: {api_key} - File content {action} in tweets_replies_list.txt")
     return JSONResponse(content={"message": f"File content {action} in tweets_replies_list.txt"}, status_code=200)
 
 
+# Dependency to check if the file is an Excel file
+def is_excel_file(file: UploadFile):
+    if not file.filename.lower().endswith(('.xlsx', '.xls')):
+        raise HTTPException(
+            status_code=400,
+            detail="Only text files are allowed",
+        )
+    return file
 
-# Log viewer
-@app.get("/logs", response_class=PlainTextResponse)
-async def read_logs(api_key: str = Depends(get_api_key)):
+
+# Endpoint to upload Excel file and add data to DB
+@app.post("/upload-excel/")
+async def upload_excel(
+    api_key: str = Depends(get_api_key),
+    file: UploadFile = Depends(is_excel_file),
+    db: Session = Depends(get_db)
+):
     """
-    View Application Logs
+    Upload Excel File and Add Data to Database
 
-    Displays the application logs.
+    Allows the application to upload an Excel file, extract data, and add it to the database.
 
-    Returns logs.
+    - **file**: Upload an Excel file.
+    - **db**: Database session.
+
+    Returns a confirmation message.
     """
-    try:
-        with open("app.log", "r") as file:
-            content = file.read()
-        return content
-    except FileNotFoundError:
+    # Load Excel file and extract data
+    workbook = load_workbook(file.file)
+    sheet = workbook.active
+
+    # Map column names to indices
+    header = sheet[1]
+    column_indices = {header[i].value: i for i in range(len(header))}
+
+    # Extract data from the Excel sheet and add it to the database
+    for row in sheet.iter_rows(min_row=2, values_only=True):
+        account_data = {
+            "account_name": row[column_indices["ACCOUNT_NAME"]],
+            "account_id": row[column_indices["ACCOUNT_ID"]],
+            "account_link": row[column_indices["ACCOUNT_LINK"]],
+            "account_status": row[column_indices["ACCOUNT_STATUS"]],
+            "account_category": row[column_indices["ACCOUNT_CATEGORY"]],
+            "account_type": row[column_indices["ACCOUNT_TYPE"]],
+            "publishing_level": row[column_indices["PUBLISHING_LEVEL"]],
+            "access_level": row[column_indices["ACCESS_LEVEL"]],
+        }
+
+        db_account = Account(**account_data)
+        db.add(db_account)
+
+    db.commit()
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    logging.info(
+        f"Request at {timestamp} from UserID: {api_key} - Data added to the database successfully.")
+    return JSONResponse(content={"message": "Data added to the database successfully."}, status_code=200)
+
+
+# Endpoint to get account details by ACCOUNT_ID
+@app.get("/get-account/")
+async def get_account(
+        api_key: str = Depends(get_api_key),
+        account_id: str = Query(..., title="Account Id", description="The ACCOUNT_ID to retrieve details for."), db: Session = Depends(get_db)):
+    """
+    Get Account Details by ACCOUNT_ID
+
+    Allows the application to retrieve account details from the database based on the provided ACCOUNT_ID.
+
+    - **account_id**: The ACCOUNT_ID to retrieve details for.
+    - **db**: Database session.
+
+    Returns account details.
+    """
+    account = db.query(Account).filter(
+        Account.account_id == account_id).first()
+
+    if not account:
         raise HTTPException(
             status_code=404,
-            detail=f"File app.log not found.",
+            detail="Account not found",
         )
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    logging.info(
+        f"Request at {timestamp} from UserID: {api_key} - Search for ACCOUNT_ID {account_id} .")
+
+    return {
+        "account_name": account.account_name,
+        "account_id": account.account_id,
+        "account_link": account.account_link,
+        "account_status": account.account_status,
+        "account_category": account.account_category,
+        "account_type": account.account_type,
+        "publishing_level": account.publishing_level,
+        "access_level": account.access_level,
+        "video_enabled": account.video_enabled,
+        "is_used": account.is_used,
+        "created_at": account.created_at
+    }
 
 
 def start_scrap_background():
     global is_task_running
     is_task_running = True
-    main() 
+    main()
+
 
 @app.get("/start-scrap")
-async def start_scrap(background_tasks: BackgroundTasks,api_key: str = Depends(get_admin_api_key)):
+async def start_scrap(background_tasks: BackgroundTasks, api_key: str = Depends(get_admin_api_key)):
     background_tasks.add_task(start_scrap_background)
     return {"message": "Scrapper will start in the background..."}
 
 
 @app.get("/stop-scrap")
-async def start_scrap(background_tasks: BackgroundTasks,api_key: str = Depends(get_admin_api_key)):
+async def start_scrap(background_tasks: BackgroundTasks, api_key: str = Depends(get_admin_api_key)):
     global is_task_running
     is_task_running = False
     return {"message": "Scrapper will stop now..."}
@@ -365,7 +545,8 @@ async def start_scrap(background_tasks: BackgroundTasks,api_key: str = Depends(g
 
 def get_time_difference_in_minutes(tweet_created_at):
     # Convert the tweet's creation time to a datetime object without timezone
-    tweet_time_naive = datetime.strptime(tweet_created_at, '%a %b %d %H:%M:%S +0000 %Y').replace(tzinfo=None)
+    tweet_time_naive = datetime.strptime(
+        tweet_created_at, '%a %b %d %H:%M:%S +0000 %Y').replace(tzinfo=None)
 
     # Set the timezone for the tweet's creation time to UTC
     tweet_time_utc = tweet_time_naive.replace(tzinfo=timezone.utc)
@@ -387,8 +568,10 @@ class TweetEntry:
         self.rest_id = entry['content']['itemContent']['tweet_results']['result']['rest_id']
         self.created_at = entry['content']['itemContent']['tweet_results']['result']['legacy']['created_at']
         # Extract is_edit_eligible values
-        is_edit_eligible1 = extract_is_edit_eligible(entry['content']['itemContent']['tweet_results']['result']['edit_control'])
+        is_edit_eligible1 = extract_is_edit_eligible(
+            entry['content']['itemContent']['tweet_results']['result']['edit_control'])
         self.is_edit_eligible = is_edit_eligible1
+
 
 def extract_is_edit_eligible(obj):
     if 'is_edit_eligible' in obj:
@@ -399,11 +582,11 @@ def extract_is_edit_eligible(obj):
         return None
 
 
-
 # Initialize used_user_rest_ids as an empty set
 used_user_rest_ids = set()
 
-def get_user_last_tweets(scraper, TweetEntry):
+
+def get_user_last_tweets_file(scraper, TweetEntry):
     # Read user_rest_ids from a text file
     with open(target_ids_file, 'r', encoding='utf-8') as file:
         user_rest_ids = [line.strip() for line in file]
@@ -418,13 +601,15 @@ def get_user_last_tweets(scraper, TweetEntry):
         if user_rest_id not in used_user_rest_ids:
             try:
                 tweetsScrap = scraper.tweets([user_rest_id])
-                
+
                 # Check for rate limit exceeded error
                 if 'errors' in tweetsScrap and tweetsScrap['errors'][0]['code'] == 88:
-                    print(f"Rate limit exceeded. Unable to retrieve tweets for user_rest_id: {user_rest_id}")
+                    print(
+                        f"Rate limit exceeded. Unable to retrieve tweets for user_rest_id: {user_rest_id}")
                     break  # Stop the script when rate limit exceeded
 
-                is_pin_included = len(tweetsScrap[0]['data']['user']['result']['timeline_v2']['timeline']['instructions'])
+                is_pin_included = len(
+                    tweetsScrap[0]['data']['user']['result']['timeline_v2']['timeline']['instructions'])
 
                 if is_pin_included == 3:
                     for entry in tweetsScrap[0]['data']['user']['result']['timeline_v2']['timeline']['instructions'][2]['entries']:
@@ -445,12 +630,79 @@ def get_user_last_tweets(scraper, TweetEntry):
                                 used_user_rest_ids.add(user_rest_id)
                                 break  # Break the loop after processing one user_rest_id
             except Exception as e:
-                print(f"An error occurred while processing user_rest_id {user_rest_id}: {str(e)}")
-                
+                print(
+                    f"An error occurred while processing user_rest_id {user_rest_id}: {str(e)}")
+
+    return latest_entries
+
+
+# Update the get_user_last_tweets function
+def get_user_last_tweets_db(scraper, TweetEntry):
+    Session = sessionmaker(bind=engine)
+    session = Session()
+    # Query for accounts that are not used
+    accounts = (session.query(Account)
+                .filter(Account.is_used == false())
+                .order_by(Account.publishing_level, Account.access_level)
+                .all()
+                )
+
+    # Check if the query returned no unused accounts
+    if not accounts:
+        # Reset is_used for all accounts to False and retry the query
+        session.query(Account).update({Account.is_used: false()})
+        session.commit()
+        
+        accounts = (session.query(Account)
+                .filter(Account.is_used == false())
+                .order_by(Account.publishing_level, Account.access_level)
+                .all()
+                )
+
+    latest_entries = []
+    for account in accounts:
+        try:
+            tweetsScrap = scraper.tweets([account.account_id])
+
+            # Check for rate limit exceeded error
+            if 'errors' in tweetsScrap and tweetsScrap['errors'][0]['code'] == 88:
+                print(
+                    f"Rate limit exceeded. Unable to retrieve tweets for account_id: {account.account_id}")
+                break  # Stop the script when rate limit exceeded
+
+            is_pin_included = len(
+                tweetsScrap[0]['data']['user']['result']['timeline_v2']['timeline']['instructions'])
+
+            if is_pin_included == 3:
+                for entry in tweetsScrap[0]['data']['user']['result']['timeline_v2']['timeline']['instructions'][2]['entries']:
+                    if entry['content']['entryType'] in {'TimelineTimelineItem'}:
+                        tweet_entry = TweetEntry(entry)
+                        if tweet_entry.is_edit_eligible:
+                            latest_entries.append(tweet_entry)
+                            # Mark account as used
+                            account.is_used = True
+                            break  # Break the loop after processing one account
+            else:
+                for entry in tweetsScrap[0]['data']['user']['result']['timeline_v2']['timeline']['instructions'][1]['entries']:
+                    if entry['content']['entryType'] in {'TimelineTimelineItem'}:
+                        tweet_entry = TweetEntry(entry)
+                        if tweet_entry.is_edit_eligible:
+                            latest_entries.append(tweet_entry)
+                            # Mark account as used
+                            account.is_used = True
+                            break  # Break the loop after processing one account
+        except Exception as e:
+            print(
+                f"An error occurred while processing account_id {account.account_id}: {str(e)}")
+
+    # Commit changes to the database
+    session.commit()
 
     return latest_entries
 
 # Function to send tweets using auth_token_value, ct0_value, and plain_text
+
+
 def send_reply(tweet_id):
 
     # Read tweets from a text file
@@ -459,46 +711,47 @@ def send_reply(tweet_id):
 
     # Shuffle the list to get a random order
     random.shuffle(replies)
-    
+
     # Read cookies from the file
     with open(reply_cookie_file_path, 'r') as cookie_file:
         cookie_data = [line.strip().split('|') for line in cookie_file]
 
     # Shuffle the list to get a random order
     random.shuffle(cookie_data)
-    
-    hashtags = ["#BringThemHomeNow", "#Bringthemhome", "#WeWillNotStopUntilTheyAreAllBack" ,
+
+    hashtags = ["#BringThemHomeNow", "#Bringthemhome", "#WeWillNotStopUntilTheyAreAllBack",
                 "#captured_oct7", "#Israel", "#hostages", "#MeTooUNlessYoureAJew",
                 "#BringThemAllHomeNow", "#HamasTerrorists", "#BringThemHome",
                 "#100Days", "#KfirBibas", "#KfirOneYear"]
     tweet_content = f" {random.choice(replies)}   {random.choice(hashtags)} {random.choice(hashtags)}"
     try:
-        account = Account(cookies={"ct0": cookie_data[0][1], "auth_token": cookie_data[0][0]})
+        account = Account(
+            cookies={"ct0": cookie_data[0][1], "auth_token": cookie_data[0][0]})
         account.reply(tweet_content, tweet_id=tweet_id)
+        logging.info(f"{cookie_data[0][2]} finsihed reply on tweet {tweet_id}")
         print(f"{cookie_data[0][2]} finsihed reply on tweet {tweet_id}")
         pass
     except Exception as e:
         print(f"Exception in send_tweet Error: {e}")
-        account = Account(cookies={"ct0": cookie_data[1][1], "auth_token": cookie_data[1][0]})
+        account = Account(
+            cookies={"ct0": cookie_data[1][1], "auth_token": cookie_data[1][0]})
         account.reply(tweet_content, tweet_id=tweet_id)
 
 
-
-
-def initialize_scraper()-> Scraper:
+def initialize_scraper() -> Scraper:
     # Read cookies from the file
     with open(scrap_cookie_file_path, 'r') as scrap_cookie_file:
-        scrap_cookie_data = [line.strip().split('|') for line in scrap_cookie_file]
+        scrap_cookie_data = [line.strip().split('|')
+                             for line in scrap_cookie_file]
 
     random.shuffle(scrap_cookie_data)
     # Loop over each pair of ct0 and auth_token
     for auth_token, ct0, user in scrap_cookie_data:
         try:
-            print('user:'+user)
             scraper = Scraper(cookies={"ct0": ct0, "auth_token": auth_token})
             tweets = scraper.tweets_by_id([1749760475204554824])
             # Initialize a new scraper object in case of an error
-            if 'errors' in tweets[0] :
+            if 'errors' in tweets[0]:
                 initialize_scraper()
             else:
                 return scraper
@@ -509,19 +762,31 @@ def initialize_scraper()-> Scraper:
 def main():
     # print('Run the function every hour')
     # Run the function every hour
+    is_db_exist, is_table_exist, is_table_empty = check_database_status(get_db)
     while is_task_running:
         scraper = initialize_scraper()
-        latest_entries_list = get_user_last_tweets(scraper, TweetEntry)
+        # Check the status of the database and accounts table
+        is_db_exist, is_table_exist, is_table_empty = check_database_status(
+            get_db)
+
+        if not is_db_exist or not is_table_exist or not is_table_empty:
+            latest_entries_list = get_user_last_tweets_db(scraper, TweetEntry)
+        else:
+            latest_entries_list = get_user_last_tweets_file(
+                scraper, TweetEntry)
         # # Print details
         for index, entry in enumerate(latest_entries_list, start=1):
             # print(f"Entry {index}: rest_id: {entry.rest_id}, is_edit_eligible: {entry.is_edit_eligible} , created_at: {entry.created_at}")
-            time_difference_minutes = get_time_difference_in_minutes(entry.created_at)
+            time_difference_minutes = get_time_difference_in_minutes(
+                entry.created_at)
             print(f"Time difference: {time_difference_minutes}")
             # Tweet less than 5 minutes, means it's new, we will reply
             if time_difference_minutes < 5:
-                print(f"Entry {index}: rest_id: {entry.rest_id}, is_edit_eligible: {entry.is_edit_eligible} , created_at: {entry.created_at}")
-                send_reply( entry.rest_id)
+                print(
+                    f"Entry {index}: rest_id: {entry.rest_id}, is_edit_eligible: {entry.is_edit_eligible} , created_at: {entry.created_at}")
+                send_reply(entry.rest_id)
         time.sleep(3600)  # Sleep for 1 hour (3600 seconds)
+
 
 if __name__ == '__main__':
     import uvicorn
