@@ -527,7 +527,7 @@ async def get_account(
         )
 
     logger.info('Request from UserID: '+api_key +
-                ' - Search for ACCOUNT_NAME'+account_name+' .')
+                ' - Search for ACCOUNT_NAME: '+account_name+' .')
 
     return {
         "account_name": account.account_name,
