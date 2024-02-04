@@ -781,7 +781,7 @@ def get_user_last_tweets_db(scraper, TweetEntry):
     # Query for accounts that are not used
     target_accounts = (session.query(TargetAccount)
                 .filter(TargetAccount.is_used == false())
-                .order_by(TargetAccount.publishing_level, TargetAccount.access_level)
+                .order_by(TargetAccount.publishing_level.asc(), TargetAccount.access_level.asc())
                 .all()
                 )
 
@@ -793,7 +793,7 @@ def get_user_last_tweets_db(scraper, TweetEntry):
 
         target_accounts = (session.query(TargetAccount)
                     .filter(TargetAccount.is_used == false())
-                    .order_by(TargetAccount.publishing_level, TargetAccount.access_level)
+                    .order_by(TargetAccount.publishing_level.asc(), TargetAccount.access_level.asc())
                     .all()
                     )
 
@@ -1007,7 +1007,7 @@ def initialize_scraper() -> Scraper:
 
             # Initialize a new scraper object in case of an error
             if 'errors' in tweets[0]:
-                print(f"Exception in initialize_scraper using user {user},  Error: {e}, will wait a while and try again.")
+                print(f"Exception in initialize_scraper using user {user} , will wait a while and try again.")
                 random_delay = random.uniform(200, 300)
                 time.sleep(random_delay)
                 initialize_scraper()
