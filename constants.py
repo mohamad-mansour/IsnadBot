@@ -343,7 +343,7 @@ class Operation:
     updateCaptionsAlwaysDisplayPreference = 'uCUQhvZ5sJ9qHinRp6CFlQ', 'updateCaptionsAlwaysDisplayPreference'
 
     default_variables = {
-        'count': 1000,
+        'count': 10,
         'withSafetyModeUserFields': True,
         'includePromotedContent': True,
         'withQuickPromoteEligibilityTweetFields': True,
@@ -437,7 +437,7 @@ trending_params = {
     'include_ext_trusted_friends_metadata': 'true',
     'send_error_codes': 'true',
     'simple_quoted_tweet': 'true',
-    'count': 1000,
+    'count': 10,
     'requestContext': 'launch',
     'include_page_configuration': 'true',
     'initial_tab_id': 'trending',
@@ -573,7 +573,7 @@ search_config = {
     'send_error_codes': 'true',
     'simple_quoted_tweet': 'true',
     'query_source': 'typed_query',
-    'count': 1000,
+    'count': 10,
     'q': '',
     'requestContext': 'launch',
     'pc': 1,
@@ -618,7 +618,7 @@ dm_params = {
 
 live_notification_params = params = {
     "cards_platform": "Web-12",
-    "count": "50",  # max value
+    "count": "10",  # max value
     "ext": "mediaStats,highlightedLabel,hasNftAvatar,voiceInfo,birdwatchPivot,superFollowMetadata,unmentionInfo,editControl",
     "include_blocked_by": "1",
     "include_blocking": "1",
@@ -666,6 +666,6 @@ recommendations_params = {
     'skip_status': '1',
     'pc': 'true',
     'display_location': 'profile_accounts_sidebar',
-    'limit': 100,
+    'limit': 10,
     'ext': 'mediaStats,highlightedLabel,hasNftAvatar,voiceInfo,birdwatchPivot,superFollowMetadata,unmentionInfo,editControl'
 }
