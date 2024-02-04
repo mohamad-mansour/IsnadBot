@@ -93,7 +93,7 @@ app = FastAPI(title="Isnad Bot",
               )
 
 # SQLite database setup
-DATABASE_URL = "sqlite:///./isnadDb.db"
+DATABASE_URL = "sqlite:///./isnad9.db"
 engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 Base = declarative_base()
 
@@ -805,7 +805,7 @@ def get_user_last_tweets_db(scraper, TweetEntry):
                 print('Stopping the loop as per the stop flag')
                 break
             try:
-                random_delay = random.uniform(30, 50)
+                random_delay = random.uniform(60, 120)
                 time.sleep(random_delay)
                 tweetsScrap = scraper.tweets(([target_account.account_id.strip()]), limit=5, count=5)
                 # Check for rate limit exceeded error
@@ -999,11 +999,13 @@ def initialize_scraper() -> Scraper:
             isnad_account.is_used = True
             session.commit()
             # , debug=1
-            scraper = Scraper(cookies={"ct0": ct0, "auth_token": auth_token})
+            scraper = Scraper(cookies={"ct0": ct0, "auth_token": auth_token}, debug=1)
             tweets = scraper.tweets_by_id([1749760475204554824])
 
             # Initialize a new scraper object in case of an error
             if 'errors' in tweets[0]:
+                random_delay = random.uniform(60, 120)
+                time.sleep(random_delay)
                 initialize_scraper()
             else:
                 # return the scraper
