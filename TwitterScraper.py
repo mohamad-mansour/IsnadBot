@@ -1025,20 +1025,21 @@ def main():
     # Run the function every hour
     is_db_exist, is_table_exist, is_table_empty = check_database_status()
     while is_task_running:
-        scraper = initialize_scraper()
-        # Check the status of the database and accounts table
-        is_db_exist, is_table_exist, is_table_empty = check_database_status()
+        if get_stop_flag():
+            scraper = initialize_scraper()
+            # Check the status of the database and accounts table
+            is_db_exist, is_table_exist, is_table_empty = check_database_status()
 
-        if not is_db_exist or not is_table_exist or not is_table_empty:
-            latest_entries_list = get_user_last_tweets_db(scraper, TweetEntry)
-        else:
-            latest_entries_list = get_user_last_tweets_file(scraper, TweetEntry)
-        # # Print details
-        for index, entry in enumerate(latest_entries_list, start=1):
-            print(
-                    f"Entry {index}: rest_id: {entry.rest_id}, is_edit_eligible: {entry.is_edit_eligible} , created_at: {entry.created_at}")
-            send_reply_db(entry.rest_id)
-        time.sleep(3600)  # Sleep for 1 hour (3600 seconds)
+            if not is_db_exist or not is_table_exist or not is_table_empty:
+                latest_entries_list = get_user_last_tweets_db(scraper, TweetEntry)
+            else:
+                latest_entries_list = get_user_last_tweets_file(scraper, TweetEntry)
+            # # Print details
+            for index, entry in enumerate(latest_entries_list, start=1):
+                print(
+                        f"Entry {index}: rest_id: {entry.rest_id}, is_edit_eligible: {entry.is_edit_eligible} , created_at: {entry.created_at}")
+                send_reply_db(entry.rest_id)
+            time.sleep(3600)  # Sleep for 1 hour (3600 seconds)
 
 
 if __name__ == '__main__':
