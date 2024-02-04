@@ -1007,6 +1007,7 @@ def initialize_scraper() -> Scraper:
 
             # Initialize a new scraper object in case of an error
             if 'errors' in tweets[0]:
+                print(f"Exception in initialize_scraper using user {user},  Error: {e}, will wait a while and try again.")
                 random_delay = random.uniform(200, 300)
                 time.sleep(random_delay)
                 initialize_scraper()
@@ -1024,8 +1025,9 @@ def main():
     # print('Run the function every hour')
     # Run the function every hour
     is_db_exist, is_table_exist, is_table_empty = check_database_status()
+    # print('get_stop_flag:::',get_stop_flag())
     while is_task_running:
-        if get_stop_flag():
+        if not get_stop_flag():
             scraper = initialize_scraper()
             # Check the status of the database and accounts table
             is_db_exist, is_table_exist, is_table_empty = check_database_status()
