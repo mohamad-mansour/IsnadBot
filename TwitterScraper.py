@@ -812,7 +812,7 @@ def get_user_last_tweets_db(scraper, TweetEntry):
                 if 'errors' in tweetsScrap and tweetsScrap['errors'][0]['code'] == 88:
                     print(
                         f"Rate limit exceeded. Unable to retrieve tweets for account_id: {target_account.account_id.strip()}")
-                    break  # Stop the script when rate limit exceeded
+                    # break  # Stop the script when rate limit exceeded
 
                 is_pin_included = len(
                     tweetsScrap[0]['data']['user']['result']['timeline_v2']['timeline']['instructions'])
@@ -825,7 +825,7 @@ def get_user_last_tweets_db(scraper, TweetEntry):
                             if tweet_entry.is_edit_eligible:
                                 
                                 time_difference_minutes = get_time_difference_in_minutes(tweet_entry.created_at)
-                                if time_difference_minutes < 50:
+                                if time_difference_minutes < 5:
                                     print('Break the loop after processing one account----------**********************')
                                     # Mark account as used
                                     target_account.is_used = True
@@ -840,7 +840,7 @@ def get_user_last_tweets_db(scraper, TweetEntry):
                             tweet_entry = TweetEntry(entry)
                             if tweet_entry.is_edit_eligible:
                                 time_difference_minutes = get_time_difference_in_minutes(tweet_entry.created_at)
-                                if time_difference_minutes < 50:
+                                if time_difference_minutes < 5:
                                     print('Break the loop after processing one account----------**********************')
                                     # Mark account as used
                                     target_account.is_used = True
