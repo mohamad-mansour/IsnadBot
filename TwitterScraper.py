@@ -728,7 +728,7 @@ def get_user_last_tweets_file(scraper, TweetEntry):
         # Check if user_rest_id has already been used
         if user_rest_id not in used_user_rest_ids:
             try:
-                random_delay = random.uniform(60, 120)
+                random_delay = random.uniform(100, 200)
                 time.sleep(random_delay)
                 tweetsScrap = scraper.tweets([user_rest_id])
 
@@ -805,7 +805,7 @@ def get_user_last_tweets_db(scraper, TweetEntry):
                 print('Stopping the loop as per the stop flag')
                 break
             try:
-                random_delay = random.uniform(60, 120)
+                random_delay = random.uniform(100, 200)
                 time.sleep(random_delay)
                 tweetsScrap = scraper.tweets(([target_account.account_id.strip()]), limit=5, count=5)
                 # Check for rate limit exceeded error
@@ -986,9 +986,12 @@ def initialize_scraper() -> Scraper:
 
         # Get the first account with account_type equal to "2"
         not_used_accounts = session.query(IsnadAccount).filter(IsnadAccount.account_type == "2").limit(1).all()
-
+    
     # Loop over each IsnadAccount record
     for isnad_account in not_used_accounts:
+        if get_stop_flag():
+                print('Stopping the loop as per the stop flag')
+                break
         print('Trying initalize scrap using account: '+ isnad_account.account_name)
         auth_token = isnad_account.auth_token
         ct0 = isnad_account.ct_value
@@ -1004,7 +1007,7 @@ def initialize_scraper() -> Scraper:
 
             # Initialize a new scraper object in case of an error
             if 'errors' in tweets[0]:
-                random_delay = random.uniform(60, 120)
+                random_delay = random.uniform(200, 300)
                 time.sleep(random_delay)
                 initialize_scraper()
             else:
