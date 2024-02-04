@@ -193,6 +193,7 @@ def log(logger: Logger, level: int, r: Response):
             limit = limits.get('x-rate-limit-limit')
             print(f"remaining: {MAGENTA}{remaining}/{limit}{RESET} requests")
             print(f'reset:     {MAGENTA}{(wait / 60):.2f}{RESET} minutes')
+            time.sleep(wait)
         except Exception as e:
             logger.error(f'Rate limit info unavailable: {e}')
 
