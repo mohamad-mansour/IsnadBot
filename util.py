@@ -131,12 +131,12 @@ def get_headers(session, **kwargs) -> dict:
         'x-twitter-auth-type': 'OAuth2Session' if cookies.get('auth_token') else '',
         'x-twitter-active-user': 'yes',
         'x-twitter-client-language': 'en',
-        'Accept-Encoding':'gzip, deflate, br',
+        # 'Accept-Encoding':'gzip, deflate, br',
         'Sec-Ch-Ua':'"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
         'Sec-Fetch-Dest':'empty',
         'Accept-Language':'en-US,en;q=0.9',
     }
-    
+    # print('Headers are:', headers)
     return dict(sorted({k.lower(): v for k, v in headers.items()}.items()))
 
 
@@ -191,8 +191,8 @@ def log(logger: Logger, level: int, r: Response):
             wait = int(r.headers.get('x-rate-limit-reset', current_time)) - current_time
             remaining = limits.get('x-rate-limit-remaining')
             limit = limits.get('x-rate-limit-limit')
-            logger.debug(f"remaining: {MAGENTA}{remaining}/{limit}{RESET} requests")
-            logger.debug(f'reset:     {MAGENTA}{(wait / 60):.2f}{RESET} minutes')
+            print(f"remaining: {MAGENTA}{remaining}/{limit}{RESET} requests")
+            print(f'reset:     {MAGENTA}{(wait / 60):.2f}{RESET} minutes')
         except Exception as e:
             logger.error(f'Rate limit info unavailable: {e}')
 
