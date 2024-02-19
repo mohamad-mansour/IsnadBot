@@ -156,7 +156,7 @@ def button_click(update: Update, context: CallbackContext) -> None:
         query.message.reply_text('*الترجمة العربية:* \n '+ result['Arabic'], reply_markup=reply_markup)
     elif option == 'option4':
         keyboard = [
-            [InlineKeyboardButton("🧑‍🦽 عبارات متضامنه مع الجنود القتلى", callback_data='option4')],
+            [InlineKeyboardButton("🔄 رسالة جديدة", callback_data='option4')],
             [InlineKeyboardButton("◀️ العودة للقائمة الرئيسية", callback_data='back')]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
@@ -275,13 +275,13 @@ def button_click(update: Update, context: CallbackContext) -> None:
         query.message.reply_text(result['Hebrew'])
         query.message.reply_text('*الترجمة العربية:* \n '+ result['Arabic'], reply_markup=reply_markup)
     else:
-        query.message.reply_text("Sorry, I didn't understand that.")
+        query.message.reply_text("برجاء إختيار إحد الخيارات من القائمة الرئيسية")
 
 
 def main() -> None:
     """Run the bot."""
     # Create the Updater and pass it your bot's token
-    updater = Updater("6828911861:AAHE4LOUYtkMrm0RXkgvIykLa7-7ADAXee4")
+    updater = Updater("6845309288:AAHdhuMwnU_pfzV-ATMU6XTKxhoSB-qCsl0")
 
     # Get the dispatcher to register handlers
     dispatcher = updater.dispatcher
