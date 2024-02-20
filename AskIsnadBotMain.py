@@ -50,6 +50,8 @@ async def startup_event():
 welcome_message = "أهلا بك في بوت *إسناد.* \n\n برجاء إختيار إحد الخيارات التالية .\n\n"
 
 
+# Global dictionary to store used messages for each file
+used_messages = {}
 
 def read_text_file(file_path):
     with open(file_path, 'r', encoding='utf-8') as file:
@@ -88,25 +90,37 @@ def get_pairs(text):
         pairs.append(current_pair)
 
     return pairs
+
 def get_random_msg(file_name):
+    global used_messages
+
+    # Check if used_messages dictionary has an entry for the given file
+    if file_name not in used_messages:
+        # If not, initialize it with an empty list
+        used_messages[file_name] = []
+
     file_path = file_name + '.txt'
     text = read_text_file(file_path)
     pairs = get_pairs(text)
 
-    random_pair = random.choice(pairs)
-    language = detect_language(random_pair[0])
+    # Shuffle the pairs to ensure randomness
+    random.shuffle(pairs)
 
-    result = {}
-    if language == 'Hebrew':
-        result['Hebrew'] = '\n'.join(random_pair[0:len(random_pair)//2])
-        result['Arabic'] = '\n'.join(random_pair[len(random_pair)//2:])
-    elif language == 'Arabic':
-        result['Arabic'] = '\n'.join(random_pair[0:len(random_pair)//2])
-        result['Hebrew'] = '\n'.join(random_pair[len(random_pair)//2:])
+    # Try to find an unused pair
+    for pair in pairs:
+        if pair not in used_messages[file_name]:
+            # If found, mark it as used and return it
+            used_messages[file_name].append(pair)
+            return {
+                'Hebrew': '\n'.join(pair[0:len(pair)//2]),
+                'Arabic': '\n'.join(pair[len(pair)//2:])
+            }
 
-    return result
+    # If all pairs are used, start over
+    used_messages[file_name] = []
+    # Call the function recursively to get a new pair
+    return get_random_msg(file_name)
 
-    
 
 # Define a function to handle the /start command
 def start(update: Update, context: CallbackContext) -> None:
@@ -301,4 +315,3 @@ def main() -> None:
 if __name__ == '__main__':
     import uvicorn
     uvicorn.run(app, host="127.0.0.1", port=8000)
-
