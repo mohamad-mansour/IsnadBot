@@ -50,8 +50,6 @@ async def startup_event():
 welcome_message = "أهلا بك في بوت *إسناد.* \n\n برجاء إختيار إحد الخيارات التالية .\n\n"
 
 
-# Global dictionary to store used messages for each file
-used_messages = {}
 
 def read_text_file(file_path):
     with open(file_path, 'r', encoding='utf-8') as file:
@@ -59,16 +57,13 @@ def read_text_file(file_path):
     return text
 
 def detect_language(text):
-    # Check if the text contains any Arabic characters
-    if any('\u0600' <= c <= '\u06FF' for c in text):
-        return 'Arabic'
-    # Check if the text contains any Hebrew characters
-    elif any('\u0590' <= c <= '\u05FF' for c in text):
-        return 'Hebrew'
+    # Check if the text contains any ASCII characters
+    if any(ord(c) < 128 for c in text):
+        return 'English'
     else:
-        return None
+        return 'Arabic'
 
-def get_pairs(text):
+def get_random_pair(text):
     pairs = []
     current_pair = []
 
@@ -89,38 +84,27 @@ def get_pairs(text):
     if current_pair:
         pairs.append(current_pair)
 
-    return pairs
+    # Filter pairs based on the detected language
+    english_pairs = [pair for pair in pairs if detect_language('\n'.join(pair)) == 'English']
 
-def get_random_msg(file_name):
-    global used_messages
+    if not english_pairs:
+        print("No English text pairs found.")
+        return None
+    random.choice(english_pairs)
+    random.choice(english_pairs)
+    random_pair = random.choice(english_pairs)
+    return random_pair
 
-    # Check if used_messages dictionary has an entry for the given file
-    if file_name not in used_messages:
-        # If not, initialize it with an empty list
-        used_messages[file_name] = []
-
-    file_path = file_name + '.txt'
+def get_reandom_msg(file_name):
+    print('get_reandom_msg file_name:',file_name)
+    file_path = file_name+'.txt'  # Replace 'your_text_file.txt' with the actual path to your text file
     text = read_text_file(file_path)
-    pairs = get_pairs(text)
+    random_pair = get_random_pair(text)
 
-    # Shuffle the pairs to ensure randomness
-    random.shuffle(pairs)
-
-    # Try to find an unused pair
-    for pair in pairs:
-        if pair not in used_messages[file_name]:
-            # If found, mark it as used and return it
-            used_messages[file_name].append(pair)
-            return {
-                'Hebrew': '\n'.join(pair[0:len(pair)//2]),
-                'Arabic': '\n'.join(pair[len(pair)//2:])
-            }
-
-    # If all pairs are used, start over
-    used_messages[file_name] = []
-    # Call the function recursively to get a new pair
-    return get_random_msg(file_name)
-
+    if random_pair:
+        english_text = '\n'.join(random_pair)
+        return english_text
+    
 
 # Define a function to handle the /start command
 def start(update: Update, context: CallbackContext) -> None:
@@ -161,23 +145,18 @@ def button_click(update: Update, context: CallbackContext) -> None:
         query.message.reply_text("يرجي إختيار نوع العبارات المطلوبة:", reply_markup=reply_markup)
     elif option == 'option3':
         keyboard = [
-            [InlineKeyboardButton("🔄 رسالة جديدة",  callback_data='option3')],
+            [InlineKeyboardButton("🕊️ عبارات ضد الحرب", callback_data='option3')],
             [InlineKeyboardButton("◀️ العودة للقائمة الرئيسية", callback_data='back')]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
-        result = get_random_msg(option)
-        query.message.reply_text(result['Hebrew'])
-        query.message.reply_text('*الترجمة العربية:* \n '+ result['Arabic'], reply_markup=reply_markup)
+        query.message.reply_text(get_reandom_msg(option), reply_markup=reply_markup)
     elif option == 'option4':
         keyboard = [
-            [InlineKeyboardButton("🔄 رسالة جديدة", callback_data='option4')],
+            [InlineKeyboardButton("🧑‍🦽 عبارات متضامنه مع الجنود القتلى", callback_data='option4')],
             [InlineKeyboardButton("◀️ العودة للقائمة الرئيسية", callback_data='back')]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
-        result = get_random_msg(option)
-
-        query.message.reply_text(result['Hebrew'])
-        query.message.reply_text('*الترجمة العربية:* \n '+ result['Arabic'], reply_markup=reply_markup)
+        query.message.reply_text(get_reandom_msg(option), reply_markup=reply_markup)
     elif option == 'option5':
         keyboard = [
             [InlineKeyboardButton("🐷 عبارات ساخرة من بنغفير أو سموتريتش", callback_data='sub_option5_1')],
@@ -196,106 +175,49 @@ def button_click(update: Update, context: CallbackContext) -> None:
             query.message.reply_text("✅ يرجي إختيار نوع العبارات المطلوبة:", reply_markup=reply_markup)
     elif option == 'back':
         start(update, context)  # Redirect to main options
-    elif option == 'sub_option1_1':
+    elif option == 'sub_option1_1' or option == 'sub_option1_2' or option == 'sub_option1_3':
         keyboard = [
-            [InlineKeyboardButton("🔄 رسالة جديدة",  callback_data='sub_option1_1')],
+            [InlineKeyboardButton("🪖 عبارات ضد نتنياهو بسبب الفشل العسكري", callback_data='sub_option1_1')],
+            [InlineKeyboardButton("💰 ضد نتنياهو لأسباب اقتصاديه", callback_data='sub_option1_2')],
+            [InlineKeyboardButton("👎 ضد نتنياهو لأسباب أخرى", callback_data='sub_option1_3')],
             [InlineKeyboardButton("◀️ العودة للقائمة الرئيسية", callback_data='back')]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
-        result = get_random_msg(option)
+        query.message.reply_text(get_reandom_msg(option), reply_markup=reply_markup)
 
-        query.message.reply_text(result['Hebrew'])
-        query.message.reply_text('*الترجمة العربية:* \n '+ result['Arabic'], reply_markup=reply_markup)
-    elif option == 'sub_option1_2':
+    elif option == 'sub_option2_1' or option == 'sub_option2_2':
         keyboard = [
-            [InlineKeyboardButton("🔄 رسالة جديدة",  callback_data='sub_option1_2')],
+            [InlineKeyboardButton("👨‍👩‍👧‍👦 عبارات متعاطفة مع أهالي الأسرى", callback_data='sub_option2_1')],
+            [InlineKeyboardButton("♾️ عبارات تدعو للتظاهر لتحرير الأسري", callback_data='sub_option2_2')],
             [InlineKeyboardButton("◀️ العودة للقائمة الرئيسية", callback_data='back')]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
-        result = get_random_msg(option)
+        query.message.reply_text(get_reandom_msg(option), reply_markup=reply_markup)
 
-        query.message.reply_text(result['Hebrew'])
-        query.message.reply_text('*الترجمة العربية:* \n '+ result['Arabic'], reply_markup=reply_markup)
-
-    elif option == 'sub_option1_3':
+    elif option == 'sub_option5_1' or option == 'sub_option5_2':
         keyboard = [
-            [InlineKeyboardButton("🔄 رسالة جديدة",  callback_data='sub_option1_3')],
+            [InlineKeyboardButton("🐷 عبارات ساخرة من بنغفير أو سموتريتش", callback_data='sub_option5_1')],
+            [InlineKeyboardButton("🐽 عبارات موضوعية ضد توجهات بنغفير وسموتريتش", callback_data='sub_option5_2')],
             [InlineKeyboardButton("◀️ العودة للقائمة الرئيسية", callback_data='back')]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
-        result = get_random_msg(option)
-
-        query.message.reply_text(result['Hebrew'])
-        query.message.reply_text('*الترجمة العربية:* \n '+ result['Arabic'], reply_markup=reply_markup)
-    elif option == 'sub_option2_1':
+        query.message.reply_text(get_reandom_msg(option), reply_markup=reply_markup)
+    elif option == 'sub_option6_1' or option == 'sub_option6_2':
         keyboard = [
-            [InlineKeyboardButton("🔄 رسالة جديدة", callback_data='sub_option2_1')],
+            [InlineKeyboardButton("📖 عبارات عامة", callback_data='sub_option6_1')],
+            [InlineKeyboardButton("📕 تعبيرات قصيرة لمواقف متنوعة", callback_data='sub_option6_2')],
             [InlineKeyboardButton("◀️ العودة للقائمة الرئيسية", callback_data='back')]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
-        result = get_random_msg(option)
-
-        query.message.reply_text(result['Hebrew'])
-        query.message.reply_text('*الترجمة العربية:* \n '+ result['Arabic'], reply_markup=reply_markup)
-    elif option == 'sub_option2_2':
-        keyboard = [
-            [InlineKeyboardButton("🔄 رسالة جديدة", callback_data='sub_option2_2')],
-            [InlineKeyboardButton("◀️ العودة للقائمة الرئيسية", callback_data='back')]
-        ]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        result = get_random_msg(option)
-
-        query.message.reply_text(result['Hebrew'])
-        query.message.reply_text('*الترجمة العربية:* \n '+ result['Arabic'], reply_markup=reply_markup)
-
-    elif option == 'sub_option5_1':
-        keyboard = [
-            [InlineKeyboardButton("🔄 رسالة جديدة", callback_data='sub_option5_1')],
-            [InlineKeyboardButton("◀️ العودة للقائمة الرئيسية", callback_data='back')]
-        ]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        result = get_random_msg(option)
-
-        query.message.reply_text(result['Hebrew'])
-        query.message.reply_text('*الترجمة العربية:* \n '+ result['Arabic'], reply_markup=reply_markup)
-    elif option == 'sub_option5_2':
-        keyboard = [
-            [InlineKeyboardButton("🔄 رسالة جديدة", callback_data='sub_option5_2')],
-            [InlineKeyboardButton("◀️ العودة للقائمة الرئيسية", callback_data='back')]
-        ]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        result = get_random_msg(option)
-
-        query.message.reply_text(result['Hebrew'])
-        query.message.reply_text('*الترجمة العربية:* \n '+ result['Arabic'], reply_markup=reply_markup)
-    elif option == 'sub_option6_1':
-        keyboard = [
-            [InlineKeyboardButton("🔄 رسالة جديدة", callback_data='sub_option6_1')],
-            [InlineKeyboardButton("◀️ العودة للقائمة الرئيسية", callback_data='back')]
-        ]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        result = get_random_msg(option)
-
-        query.message.reply_text(result['Hebrew'])
-        query.message.reply_text('*الترجمة العربية:* \n '+ result['Arabic'], reply_markup=reply_markup)
-    elif option == 'sub_option6_2':
-        keyboard = [
-            [InlineKeyboardButton("🔄 رسالة جديدة", callback_data='sub_option6_2')],
-            [InlineKeyboardButton("◀️ العودة للقائمة الرئيسية", callback_data='back')]
-        ]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        result = get_random_msg(option)
-
-        query.message.reply_text(result['Hebrew'])
-        query.message.reply_text('*الترجمة العربية:* \n '+ result['Arabic'], reply_markup=reply_markup)
+        query.message.reply_text(get_reandom_msg(option), reply_markup=reply_markup)
     else:
-        query.message.reply_text("برجاء إختيار إحد الخيارات من القائمة الرئيسية")
+        query.message.reply_text("Sorry, I didn't understand that.")
 
 
 def main() -> None:
     """Run the bot."""
     # Create the Updater and pass it your bot's token
-    updater = Updater("6845309288:AAHdhuMwnU_pfzV-ATMU6XTKxhoSB-qCsl0")
+    updater = Updater("6845309288:AAFEbZ8dcC_7UuhXGaVejkGH-iYgVtm3Bp8")
 
     # Get the dispatcher to register handlers
     dispatcher = updater.dispatcher
@@ -310,8 +232,9 @@ def main() -> None:
     updater.start_polling()
 
     # Run the bot until you press Ctrl-C
-    # updater.idle()
+    updater.idle()
 
 if __name__ == '__main__':
     import uvicorn
     uvicorn.run(app, host="127.0.0.1", port=8000)
+
