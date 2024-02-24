@@ -78,7 +78,7 @@ def get_pairs(text):
         if not line:
             continue
 
-        if line == '-----------------------------------------------------------':
+        if line == '=-*=-*':
             if current_pair:
                 pairs.append(current_pair)
             current_pair = []
@@ -295,7 +295,7 @@ def button_click(update: Update, context: CallbackContext) -> None:
 def main() -> None:
     """Run the bot."""
     # Create the Updater and pass it your bot's token
-    updater = Updater("6845309288:AAFxwJtl1poKhTr3PcWTyvIzvFpjRJGWIr4")
+    updater = Updater("6845309288:AAHW18_XyNr4eCfejDuUn3cthOqEpJMhhPk")
 
     # Get the dispatcher to register handlers
     dispatcher = updater.dispatcher
