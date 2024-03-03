@@ -57,7 +57,7 @@ Access to these services is protected by an API key mechanism. Users must provid
     
 - To read file content: Access the `/read-file-content/` endpoint, specifying the file name and providing the API key for authentication.    
  
-- To upload excel file of Isnad accounts: Use the `/upload-isnad-accounts/` endpoint, providing an excel sheet of the accounts details and ensuring the provided API key is valid.
+- To upload ISDNAD Quotes messages: Use the `/update-quotes-list/` endpoint, providing an the required file and ensuring the provided API key is valid.
 
 - To display logs: Access the `/logs/` endpoint.
     
@@ -207,8 +207,7 @@ async def read_file_content(
 async def upload_quotes_replies(
         file: UploadFile = File(...,
                                 description="Upload a text file containing the list of replies."),
-        api_key: str = Depends(get_api_key),
-        replace_existing: bool = Query(default=False, description="Whether to replace existing content in tweets_replies_list.txt"), _: bool = Depends(is_text_file),):
+        api_key: str = Depends(get_api_key)):
 
     """
     Upload tweets replies
@@ -225,7 +224,7 @@ async def upload_quotes_replies(
 
     # Decode contents and split it into lines
     lines = contents.decode("utf-8").splitlines()
-
+    replace_existing = False
     # Open file in append mode or write mode based on replace_existing flag
     mode = "w" if replace_existing else "a"
 
@@ -505,7 +504,7 @@ def button_click(update: Update, context: CallbackContext) -> None:
 def main() -> None:
     """Run the bot."""
     # Create the Updater and pass it your bot's token
-    updater = Updater("6845309288:AAE8q_mrGYh5ZZBsw9atwvL4ECh5y5yjvdM")
+    updater = Updater("6845309288:AAH-XFFL1bzWalLeyT2EMS3JkDyUjrjVO1s")
 
     # Get the dispatcher to register handlers
     dispatcher = updater.dispatcher
