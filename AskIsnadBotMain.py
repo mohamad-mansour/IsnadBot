@@ -1,37 +1,246 @@
-from telegram import Update
-from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
-from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
-from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
-from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackQueryHandler, CallbackContext
-
-
 import datetime
+import logging
 import os
 import random
 import re
-import logging
 import time
+from logging.handlers import RotatingFileHandler
 from typing import List, Optional, Tuple
 
 import telegram
-from fastapi import BackgroundTasks, FastAPI, HTTPException
-from telegram import Update
-from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove, Update
-from telegram.ext import (CallbackContext, CommandHandler, ConversationHandler,
-                          ContextTypes, Filters, MessageHandler, Updater,
-                          filters)
+from fastapi import (BackgroundTasks, Depends, FastAPI, File, Header,
+                     HTTPException, Path, Query, UploadFile)
+from fastapi.responses import JSONResponse, PlainTextResponse
+from telegram import (InlineKeyboardButton, InlineKeyboardMarkup,
+                      ReplyKeyboardMarkup, ReplyKeyboardRemove, Update)
+from telegram.ext import (CallbackContext, CallbackQueryHandler,
+                          CommandHandler, ContextTypes, ConversationHandler,
+                          Filters, MessageHandler, Updater, filters)
+
+# configure the log format
+formatter  = logging.Formatter('%(asctime)s - %(message)s')
 
 
-# Enable logging
-logging.basicConfig(
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
-)
-# set higher logging level for httpx to avoid all GET and POST requests being logged
-logging.getLogger("httpx").setLevel(logging.WARNING)
+handler = RotatingFileHandler('app.log', maxBytes=1024*1024*10, backupCount=5)
+handler.setFormatter(formatter)
+# set the logging level to INFO
+logging.basicConfig(format='%(asctime)s %(message)s', level=logging.INFO)
 
+# add the handler to the logger
 logger = logging.getLogger(__name__)
+logger.addHandler(handler)
 
-app = FastAPI(title="Ask Isnad Bot")
+description = """
+
+## Isnad Scrap - Util API <img src=\'https://flagcdn.com/24x18/ps.png\'> 🔻🔻🔻
+
+
+Isnad scrap is a powerful tool designed to streamline interactions with the Twitter platform automatically.
+
+The following APIs provide various services for managing user cookies, handling target user IDs, and reading file contents.
+
+**Key Features:**
+
+- **Update Quotes list:**
+    Upload file of the quotes, to be presented to the Bot's users. 
+    The uploaded file should follow the have the valid name and use `=-*=-*` as a seperator between sentences.
+
+- **Read File Content:**
+    Retrieve the content of a specified file, providing each line in a proper format. 
+    Ideal for accessing stored information or logs.
+
+**Authentication:**
+    
+Access to these services is protected by an API key mechanism. Users must provide a valid API key in the request header for authentication.
+
+**How to Use:**
+    
+- To read file content: Access the `/read-file-content/` endpoint, specifying the file name and providing the API key for authentication.    
+ 
+- To upload excel file of Isnad accounts: Use the `/upload-isnad-accounts/` endpoint, providing an excel sheet of the accounts details and ensuring the provided API key is valid.
+
+- To display logs: Access the `/logs/` endpoint.
+    
+
+
+
+**Obtaining an API Key:**
+    
+For users requiring an API key, please contact `M Mansour` for assistance.
+
+"""
+
+app = FastAPI(title="Isnad Bot",
+              description=description,
+              summary="Isnad Scrap - Util API.",
+              version="0.0.1", swagger_ui_parameters={"defaultModelsExpandDepth": -1}
+              )
+
+
+
+API_KEY_ADMIN = "iSLgvYQMFbExJGIVpJHEOEHnYxyzT4Fcr5xfSVG2Sn0q5FcrylK72Pgs3ctg0Cyp"
+
+
+# Define a dictionary to store the mapping of userid to api_key
+user_api_key_map = {
+    "user1": "Hw1MXuWmKwsG4UXlRITVvS3vku64a71Thj7Z9lXPvXZ5tuUEsTGAfqT8m8AnNGuo",
+    "user2": "ERGZdjZqumtfZccYmpKUGF7KFkRrqATioi6OUXQI8iiVZtG3xiKBfGgPjqgMwdvw",
+    "user3": "WbpClFZ2HnsNgbYBwsoYeVFK5iApa71fgSFHA9xE7ca8zjKFw1rOQzohwVOKX",
+    "user4": "wRkBnrIMx20TPYRduKsq3SXfc8WkXh0Pj3H0hGYGJsdgSXXxYMzTMk4JUqkyMsl",
+    "user5": "AfIZUKMWVNoSDFXCVinHqaFIZnDgEWzDBw2PgubmffcQzUj9Lh5WaTz3ilzFx8Dp",
+    "user6": "XQ5ihKJl2GqUvMM8O0Fs06UmZy6d0EeF4u3QLAMVbppzJETTul90PhQh7vI9oC4R",
+    "user7": "fEpvjfO0oZr4fb3nc545GdOc3SEhlKfBiNa8ZXFZHTly2duw20C44QZHBCf",
+    "user8": "fKrFNeOwapEe7XZXCTRl9ufMZXCYpemjb2VVkS8Z40fYVtgQMC46A26K7o",
+    "user9": "wJkclhGS7ROCfZXCcA6ZXCZXOp7sdK5iAp9oZXCZXCYxbA94Xj8EEnTqIEDq",
+    "user10": "RpnNbdW9sN8zVddnuZXCFG0I2VMzY2VBI5tnrHhYqVrXiBNkpwjSwyyJf",
+    "user11": "SedkImeAadZCloPajo4ekQohXe5yWAi7aZXCVOeYqvI464Uj9cVXhjoVF",
+    "user12": "onHGZ9U57aYeRWUiwoIbGCQLO6xZXCHXtW4SimPtas3j8f4K6OPpTVCEh",
+    "admin": API_KEY_ADMIN
+    # Add more users and their corresponding api keys
+}
+
+# Dependency to get the userid based on the provided api_key
+async def get_api_key(api_key: str = Header(..., description="API key for authentication")):
+    """
+    Get User ID
+
+    Retrieves the userid based on the provided API key.
+
+    - **api_key**: API key for authentication.
+
+    Returns the corresponding userid.
+    """
+    for userid, key in user_api_key_map.items():
+        if key == api_key:
+            return userid
+    raise HTTPException(
+        status_code=401,
+        detail="Invalid API key",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+
+# Dependency to check the admin API key
+
+
+def get_admin_api_key(api_key: str = Header(..., description="Admin API key for authentication")):
+    if api_key != API_KEY_ADMIN:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid admin API key",
+        )
+    return api_key
+
+
+@app.get("/", include_in_schema=False)
+def read_root():
+    return {"Isnad Quotes": "✌️ 🇵🇸🔻🔻🔻"}
+
+
+
+# Define a function to check if the file is a text file
+def is_text_file(file: UploadFile):
+    if not file.content_type.startswith("text/"):
+        raise HTTPException(
+            status_code=400,
+            detail="Only text files are allowed",
+        )
+
+
+
+# Log viewer
+@app.get("/logs", response_class=PlainTextResponse)
+async def read_logs(api_key: str = Depends(get_api_key)):
+    """
+    View Application Logs
+
+    Displays the application logs.
+
+    Returns logs.
+    """
+    try:
+        with open("app.log", "r", encoding="utf-8") as file:
+            logs = file.readlines()
+
+        # Reverse the order of logs to get the most recent entries first
+        logs.reverse()
+
+        content = "".join(logs)
+        return content
+    except FileNotFoundError:
+        raise HTTPException(
+            status_code=404,
+            detail=f"File app.log not found.",
+        )
+
+
+
+@app.get("/read-file-content/", response_class=PlainTextResponse)
+async def read_file_content(
+    file_name: str = Query(..., title="File Name",
+                           description="Name of the file to read."),
+    api_key: str = Depends(get_api_key),
+):
+    """
+    Read File Content
+
+    Reads the content of the specified file and responds with each line in proper format.
+
+    - **file_name**: Name of the file to read, including the extension, ex: .txt.
+    - **api_key**: API key for authentication.
+
+    Returns the content of the file as plain text.
+    """
+    try:
+        with open(file_name, "r", encoding='utf-8') as file:
+            content = file.read()
+
+        logger.info('Request from UserID: ' +
+                    str(api_key) + '- read file '+file_name)
+        return content
+    except FileNotFoundError:
+        raise HTTPException(
+            status_code=404,
+            detail=f"File '{file_name}' not found.",
+        )
+
+@app.post("/update-quotes-list/")
+async def upload_quotes_replies(
+        file: UploadFile = File(...,
+                                description="Upload a text file containing the list of replies."),
+        api_key: str = Depends(get_api_key),
+        replace_existing: bool = Query(default=False, description="Whether to replace existing content in tweets_replies_list.txt"), _: bool = Depends(is_text_file),):
+
+    """
+    Upload tweets replies
+
+    Update the list of replies, which will be used to reply to the recent tweets of targeted users.
+
+    - **file**: List of tweets replies, the format should be one reply in each line
+    - **api_key**: API key for authentication.
+    - **replace_existing**: Whether to replace existing content in tweets_replies_list.txt.
+
+    """
+
+    contents = await file.read()
+
+    # Decode contents and split it into lines
+    lines = contents.decode("utf-8").splitlines()
+
+    # Open file in append mode or write mode based on replace_existing flag
+    mode = "w" if replace_existing else "a"
+
+    # Append or replace content in the existing file "tweets_replies_list.txt"
+    with open("tweets_replies_list.txt", mode, encoding="utf-8") as offline_file:
+        for line in lines:
+            if line.strip():  # Ignore empty lines
+                offline_file.write(line + "\n")
+
+    action = "Replaced" if replace_existing else "Appended"
+    logger.info('Request from UserID: '+api_key +
+                ' - File content '+action+' in tweets_replies_list.txt')
+    return JSONResponse(content={"message": f"File content {action} in tweets_replies_list.txt"}, status_code=200)
+
+
 
 
 @app.on_event("startup")
@@ -296,7 +505,7 @@ def button_click(update: Update, context: CallbackContext) -> None:
 def main() -> None:
     """Run the bot."""
     # Create the Updater and pass it your bot's token
-    updater = Updater("6845309288:AAFS7_-Wul_r34jOzgxX7S6CL6gELMolT7A")
+    updater = Updater("6845309288:AAE8q_mrGYh5ZZBsw9atwvL4ECh5y5yjvdM")
 
     # Get the dispatcher to register handlers
     dispatcher = updater.dispatcher
