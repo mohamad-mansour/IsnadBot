@@ -206,17 +206,16 @@ async def read_file_content(
 @app.post("/update-quotes-list/")
 async def upload_quotes_replies(
         file: UploadFile = File(...,
-                                description="Upload a text file containing the list of replies."),
+                                description="Upload a text file containing the list of quotes."),
         api_key: str = Depends(get_api_key)):
 
     """
-    Upload tweets replies
+    Upload quotes list
 
-    Update the list of replies, which will be used to reply to the recent tweets of targeted users.
+    Update the list of quotes.
 
-    - **file**: List of tweets replies, the format should be one reply in each line
+    - **file**: List of quotes messages, the format should be one reply in each line and keep the seperator as expected
     - **api_key**: API key for authentication.
-    - **replace_existing**: Whether to replace existing content in tweets_replies_list.txt.
 
     """
 
@@ -224,20 +223,20 @@ async def upload_quotes_replies(
 
     # Decode contents and split it into lines
     lines = contents.decode("utf-8").splitlines()
-    replace_existing = False
+    replace_existing = True
     # Open file in append mode or write mode based on replace_existing flag
     mode = "w" if replace_existing else "a"
 
-    # Append or replace content in the existing file "tweets_replies_list.txt"
-    with open("tweets_replies_list.txt", mode, encoding="utf-8") as offline_file:
+    # Append or replace content in the existing file 
+    with open(file.filename, mode, encoding="utf-8") as offline_file:
         for line in lines:
             if line.strip():  # Ignore empty lines
                 offline_file.write(line + "\n")
 
     action = "Replaced" if replace_existing else "Appended"
     logger.info('Request from UserID: '+api_key +
-                ' - File content '+action+' in tweets_replies_list.txt')
-    return JSONResponse(content={"message": f"File content {action} in tweets_replies_list.txt"}, status_code=200)
+                ' - File content '+action+' in '+file.filename)
+    return JSONResponse(content={"message": f"File content {action} in {file.filename}"}, status_code=200)
 
 
 
@@ -504,7 +503,7 @@ def button_click(update: Update, context: CallbackContext) -> None:
 def main() -> None:
     """Run the bot."""
     # Create the Updater and pass it your bot's token
-    updater = Updater("6845309288:AAH-XFFL1bzWalLeyT2EMS3JkDyUjrjVO1s")
+    updater = Updater("6845309288:AAH9Rjb70HvmPjvYwLqu97AJMp7iXxmXumM")
 
     # Get the dispatcher to register handlers
     dispatcher = updater.dispatcher
