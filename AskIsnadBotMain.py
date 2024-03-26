@@ -76,7 +76,9 @@ app = FastAPI(title="Isnad Bot",
               summary="Isnad Scrap - Util API.",
               version="0.0.1", swagger_ui_parameters={"defaultModelsExpandDepth": -1}
               )
-origins = ["*"]
+origins = [
+    "https://isnad-dash-trial.web.app"
+]
 
 app.add_middleware(
     CORSMiddleware,
