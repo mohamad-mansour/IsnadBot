@@ -11,6 +11,7 @@ import telegram
 from fastapi import (BackgroundTasks, Depends, FastAPI, File, Header,
                      HTTPException, Path, Query, UploadFile)
 from fastapi.responses import JSONResponse, PlainTextResponse
+from fastapi.middleware.cors import CORSMiddleware
 from telegram import (InlineKeyboardButton, InlineKeyboardMarkup,
                       ReplyKeyboardMarkup, ReplyKeyboardRemove, Update)
 from telegram.ext import (CallbackContext, CallbackQueryHandler,
@@ -75,8 +76,15 @@ app = FastAPI(title="Isnad Bot",
               summary="Isnad Scrap - Util API.",
               version="0.0.1", swagger_ui_parameters={"defaultModelsExpandDepth": -1}
               )
+origins = ["*"]
 
-
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 API_KEY_ADMIN = "iSLgvYQMFbExJGIVpJHEOEHnYxyzT4Fcr5xfSVG2Sn0q5FcrylK72Pgs3ctg0Cyp"
 
@@ -503,7 +511,7 @@ def button_click(update: Update, context: CallbackContext) -> None:
 def main() -> None:
     """Run the bot."""
     # Create the Updater and pass it your bot's token
-    updater = Updater("6845309288:AAH9Rjb70HvmPjvYwLqu97AJMp7iXxmXumM")
+    updater = Updater("6845309288:AAGB_oXGNwoZoHGCLv-6T9mkgbj5wFe_IWE")
 
     # Get the dispatcher to register handlers
     dispatcher = updater.dispatcher
